@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Inter } from "next/font/google";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "800"],
+});
 
 export const metadata: Metadata = {
-  title: "Figma Comment Intelligence Demo API",
-  description: "Backend for demo-only AI comment classification.",
+  title: "Figcomment",
+  description: "Analyse, sort, and create actions for feedback.",
 };
 
 type RootLayoutProps = {
@@ -13,7 +19,9 @@ type RootLayoutProps = {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.className} style={{ margin: 0 }}>
+        {children}
+      </body>
     </html>
   );
 }

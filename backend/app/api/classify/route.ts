@@ -24,7 +24,7 @@ const base_cors_headers = {
 
 const default_allowed_origins = [
   "http://localhost:3000",
-  "http://127.0.0.1:3000",
+  "https://figcomment.vercel.app",
   "https://www.figma.com",
   "https://figma.com",
   "null",
@@ -55,10 +55,11 @@ type FlattenedComment = {
 };
 
 // Preflight support for plugin requests from Figma/browser contexts.
-export async function OPTIONS(): Promise<Response> {
+export async function OPTIONS(request: Request): Promise<Response> {
+  const request_origin = request.headers.get("origin") ?? "";
   return new Response(null, {
     status: 204,
-    headers: create_cors_headers(""),
+    headers: create_cors_headers(request_origin),
   });
 }
 

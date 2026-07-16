@@ -47,7 +47,9 @@ figma.ui.onmessage = async (message: unknown) => {
 
 // Coordinates file lookup, backend classification, and canvas rendering.
 async function runAnalysis(): Promise<void> {
+  let current_step = "initializing";
   try {
+    current_step = "checking_file_context";
     postStatus("Checking active file context...");
 
     const file_key = figma.fileKey;
@@ -66,6 +68,7 @@ async function runAnalysis(): Promise<void> {
         : DEFAULT_BACKEND_URL;
 
     // Fetch first so we only mutate canvas if we have valid rows to render.
+    current_step = "requesting_classification";
     postStatus("Fetching and classifying comments...");
     const classify_response = await fetchClassification(backend_url, file_key);
 
@@ -73,6 +76,7 @@ async function runAnalysis(): Promise<void> {
       throw new Error("No comments were returned for this file.");
     }
 
+    current_step = "drawing_table";
     postStatus("Drawing table in Figma...");
     const table_node = await drawTable(classify_response.rows);
 
@@ -83,7 +87,11 @@ async function runAnalysis(): Promise<void> {
       `Done. Rendered ${classify_response.rows.length} rows (${classify_response.meta.mode} mode).`,
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unexpected error.";
+    const message = formatUnknownError(error);
+    console.error("[runAnalysis] error", {
+      current_step,
+      error,
+    });
     figma.ui.postMessage({ type: "error", message });
   }
 }
@@ -101,7 +109,10 @@ async function fetchClassification(
 
   if (!response.ok) {
     const body_text = await response.text();
-    throw new Error(`Backend request failed (${response.status}): ${body_text}`);
+    const backend_message = extractBackendErrorMessage(body_text);
+    throw new Error(
+      `Backend request failed (${response.status}): ${backend_message}`,
+    );
   }
 
   const payload: unknown = await response.json();
@@ -118,7 +129,7 @@ async function drawTable(rows: ClassifiedRow[]): Promise<FrameNode> {
   await figma.loadFontAsync(FONT_BOLD);
 
   const table_frame = figma.createFrame();
-  table_frame.name = "Comment Intelligence Table";
+  table_frame.name = "Figcomment Table";
   table_frame.layoutMode = "VERTICAL";
   table_frame.primaryAxisSizingMode = "AUTO";
   table_frame.counterAxisSizingMode = "AUTO";
@@ -250,4 +261,52 @@ function isClassifyResponse(value: unknown): value is ClassifyResponse {
   }
 
   return true;
+}
+
+function formatUnknownError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as Record<string, unknown>).message === "string"
+  ) {
+    return (error as Record<string, string>).message;
+  }
+
+  try {
+    return `Unexpected error payload: ${JSON.stringify(error)}`;
+  } catch {
+    return "Unexpected error payload (non-serializable).";
+  }
+}
+
+function extractBackendErrorMessage(raw_error_body: string): string {
+  try {
+    const parsed = JSON.parse(raw_error_body) as unknown;
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "error" in parsed &&
+      typeof (parsed as Record<string, unknown>).error === "object"
+    ) {
+      const error_field = (parsed as Record<string, unknown>).error as
+        | Record<string, unknown>
+        | null;
+      if (error_field && typeof error_field.message === "string") {
+        return error_field.message;
+      }
+    }
+  } catch {
+    // If backend didn't return JSON, fall back to raw body.
+  }
+
+  return raw_error_body;
 }

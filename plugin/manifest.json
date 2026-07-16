@@ -1,5 +1,5 @@
 {
-  "name": "Comment Intelligence Demo",
+  "name": "Figcomment",
   "id": "comment-intelligence-demo-private",
   "api": "1.0.0",
   "editorType": ["figma"],
@@ -8,7 +8,7 @@
   "documentAccess": "dynamic-page",
   "enablePrivatePluginApi": true,
   "networkAccess": {
-    "allowedDomains": ["https://figcomment-demo.vercel.app"],
+    "allowedDomains": ["https://figcomment.vercel.app"],
     "devAllowedDomains": ["http://localhost:3000"],
     "reasoning": "The plugin sends file comments to a demo backend for AI classification."
   }

@@ -1,4 +1,4 @@
-# Figma Comment Intelligence Demo
+# Figcomment
 
 This plugin turns unstructured Figma comments into a structured feedback table on the canvas.
 
