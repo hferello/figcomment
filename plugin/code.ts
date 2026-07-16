@@ -1,5 +1,5 @@
-// Purpose: Figma plugin runtime that requests classified comments and renders a canvas table.
-// Context: UI sends run command -> plugin fetches backend rows -> plugin draws auto-layout table.
+// Purpose: Figma plugin runtime that requests classified comments and renders canvas outputs.
+// Context: UI sends run command -> plugin fetches backend rows -> plugin draws table/notes/CSV.
 // Intent: keep plugin logic explicit so demo behavior is easy to narrate and debug live.
 type CritiqueLens =
   | "Low - Visual design"
@@ -9,7 +9,97 @@ type CritiqueLens =
   | "High - User need/problem"
   | "High - Business opportunity/problem";
 
-type FeedbackType = "Comment" | "Suggestion" | "Action" | "Idea";
+type RgbColor = { r: number; g: number; b: number };
+
+// Official FigJam sticky palette — hex/255 keeps exact palette color values.
+function figjamStickyColor(red: number, green: number, blue: number): RgbColor {
+  return { r: red / 255, g: green / 255, b: blue / 255 };
+}
+
+const FIGJAM_STICKY = {
+  yellow: figjamStickyColor(0xff, 0xe2, 0x99),
+  blue: figjamStickyColor(0xa8, 0xda, 0xff),
+  green: figjamStickyColor(0xb3, 0xef, 0xbd),
+  teal: figjamStickyColor(0xb3, 0xf4, 0xef),
+  violet: figjamStickyColor(0xd3, 0xbd, 0xff),
+  pink: figjamStickyColor(0xff, 0xa8, 0xdb),
+  red: figjamStickyColor(0xff, 0xb8, 0xa8),
+  orange: figjamStickyColor(0xff, 0xd3, 0xa8),
+};
+
+type ThemeStyle = {
+  section_bg: RgbColor;
+  header_accent: RgbColor;
+  note_fill: RgbColor;
+};
+
+const LENS_DISPLAY_ORDER: CritiqueLens[] = [
+  "Low - Visual design",
+  "Low - Interaction design",
+  "Medium - Flow and information design",
+  "High - Underlying model, business rules and logic",
+  "High - User need/problem",
+  "High - Business opportunity/problem",
+];
+
+const THEME_STYLES: Record<CritiqueLens, ThemeStyle> = {
+  "Low - Visual design": {
+    section_bg: { r: 0.98, g: 0.96, b: 0.88 },
+    header_accent: { r: 0.95, g: 0.78, b: 0.2 },
+    note_fill: FIGJAM_STICKY.yellow,
+  },
+  "Low - Interaction design": {
+    section_bg: { r: 0.93, g: 0.96, b: 1 },
+    header_accent: { r: 0.22, g: 0.56, b: 0.96 },
+    note_fill: FIGJAM_STICKY.blue,
+  },
+  "Medium - Flow and information design": {
+    section_bg: { r: 0.93, g: 0.98, b: 0.94 },
+    header_accent: { r: 0.18, g: 0.66, b: 0.45 },
+    note_fill: FIGJAM_STICKY.green,
+  },
+  "High - Underlying model, business rules and logic": {
+    section_bg: { r: 0.96, g: 0.93, b: 0.99 },
+    header_accent: { r: 0.58, g: 0.33, b: 0.84 },
+    note_fill: FIGJAM_STICKY.violet,
+  },
+  "High - User need/problem": {
+    section_bg: { r: 0.99, g: 0.94, b: 0.94 },
+    header_accent: { r: 0.86, g: 0.3, b: 0.33 },
+    note_fill: FIGJAM_STICKY.red,
+  },
+  "High - Business opportunity/problem": {
+    section_bg: { r: 0.98, g: 0.94, b: 0.9 },
+    header_accent: { r: 0.86, g: 0.55, b: 0.18 },
+    note_fill: FIGJAM_STICKY.orange,
+  },
+};
+
+const DEFAULT_THEME_STYLE: ThemeStyle = {
+  section_bg: { r: 0.97, g: 0.97, b: 0.97 },
+  header_accent: { r: 0.45, g: 0.45, b: 0.45 },
+  note_fill: FIGJAM_STICKY.yellow,
+};
+
+type FeedbackType = "Thoughts" | "Suggestion" | "Action" | "Idea";
+
+const FEEDBACK_TYPE_EMOJI: Record<FeedbackType, string> = {
+  Thoughts: "💭",
+  Suggestion: "👍",
+  Action: "✅",
+  Idea: "💡",
+};
+
+// Matches FigJam sticky depth: soft blur, high vertical offset, square corners.
+const FIGJAM_STICKY_DROP_SHADOW: DropShadowEffect = {
+  type: "DROP_SHADOW",
+  color: { r: 0, g: 0, b: 0, a: 0.06 },
+  offset: { x: 0, y: 3 },
+  radius: 12,
+  spread: 0,
+  visible: true,
+  blendMode: "NORMAL",
+};
 
 type ClassifiedRow = {
   person: string;
@@ -26,15 +116,25 @@ type ClassifyResponse = {
   };
 };
 
+type OutputFormat = "table" | "sticky_notes" | "csv";
+
 type UiRunMessage = {
   type: "run_analysis";
+  output_format: OutputFormat;
 };
 
 const DEFAULT_BACKEND_URL = "http://localhost:3000/api/classify";
 const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
 const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
 
-figma.showUI(__html__, { width: 360, height: 220 });
+const PLUGIN_UI_WIDTH = 360;
+const PLUGIN_UI_HEIGHT = 280;
+
+figma.showUI(__html__, {
+  width: PLUGIN_UI_WIDTH,
+  height: PLUGIN_UI_HEIGHT,
+});
+figma.ui.resize(PLUGIN_UI_WIDTH, PLUGIN_UI_HEIGHT);
 
 // Accepts validated UI commands and triggers the full analysis/render pipeline.
 figma.ui.onmessage = async (message: unknown) => {
@@ -42,15 +142,15 @@ figma.ui.onmessage = async (message: unknown) => {
     return;
   }
 
-  await runAnalysis();
+  await runAnalysis(message.output_format);
 };
 
 // Coordinates file lookup, backend classification, and canvas rendering.
-async function runAnalysis(): Promise<void> {
+async function runAnalysis(output_format: OutputFormat): Promise<void> {
   let current_step = "initializing";
   try {
     current_step = "checking_file_context";
-    postStatus("Checking active file context...");
+    postStatus("🔍 Locating the scene of the crime...");
 
     const file_key = figma.fileKey;
     if (!file_key) {
@@ -69,22 +169,37 @@ async function runAnalysis(): Promise<void> {
 
     // Fetch first so we only mutate canvas if we have valid rows to render.
     current_step = "requesting_classification";
-    postStatus("Fetching and classifying comments...");
+    postStatus("🤠 Herding comments...");
     const classify_response = await fetchClassification(backend_url, file_key);
 
     if (classify_response.rows.length === 0) {
-      throw new Error("No comments were returned for this file.");
+      throw new Error("🦗 Crickets. This file has no comments to classify.");
     }
 
-    current_step = "drawing_table";
-    postStatus("Drawing table in Figma...");
-    const table_node = await drawTable(classify_response.rows);
+    current_step = "drawing_output";
+    postStatus(`🔧 Assembling your ${output_format.replace("_", " ")} like IKEA furniture...`);
 
-    figma.currentPage.selection = [table_node];
-    figma.viewport.scrollAndZoomIntoView([table_node]);
+    if (output_format === "csv") {
+      exportCsv(classify_response.rows);
+      postComplete(
+        `🎉 Boom! ${classify_response.rows.length} rows wrangled into a CSV.`,
+      );
+      return;
+    }
+
+    const output_node =
+      output_format === "sticky_notes"
+        ? await drawStickyNotes(classify_response.rows)
+        : await drawTable(classify_response.rows);
+
+    figma.currentPage.selection = [output_node];
+    figma.viewport.scrollAndZoomIntoView([output_node]);
+
+    const output_label =
+      output_format === "sticky_notes" ? "sticky note sections" : "table rows";
 
     postComplete(
-      `Done. Rendered ${classify_response.rows.length} rows (${classify_response.meta.mode} mode).`,
+      `🎉 Boom! ${classify_response.rows.length} ${output_label} served up.`,
     );
   } catch (error: unknown) {
     const message = formatUnknownError(error);
@@ -101,11 +216,18 @@ async function fetchClassification(
   backend_url: string,
   file_key: string,
 ): Promise<ClassifyResponse> {
-  const response = await fetch(backend_url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ file_key }),
-  });
+  let response: FetchResponse;
+  try {
+    response = await fetch(backend_url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_key }),
+    });
+  } catch {
+    throw new Error(
+      `Could not reach backend at ${backend_url}. Start the backend with "npm run dev" in /backend, and run this plugin from Plugins → Development (required for localhost access).`,
+    );
+  }
 
   if (!response.ok) {
     const body_text = await response.text();
@@ -128,7 +250,7 @@ async function drawTable(rows: ClassifiedRow[]): Promise<FrameNode> {
   await figma.loadFontAsync(FONT_REGULAR);
   await figma.loadFontAsync(FONT_BOLD);
 
-  const table_frame = figma.createFrame();
+  const table_frame = createLayoutFrame();
   table_frame.name = "Figcomment Table";
   table_frame.layoutMode = "VERTICAL";
   table_frame.primaryAxisSizingMode = "AUTO";
@@ -151,7 +273,7 @@ async function drawTable(rows: ClassifiedRow[]): Promise<FrameNode> {
 
   for (const row of rows) {
     const row_node = createRow(
-      [row.person, row.feedback, row.type, row.critique_lens],
+      [row.person, row.feedback, formatFeedbackType(row.type), formatCritiqueLens(row.critique_lens)],
       false,
     );
     table_frame.appendChild(row_node);
@@ -165,9 +287,356 @@ async function drawTable(rows: ClassifiedRow[]): Promise<FrameNode> {
   return table_frame;
 }
 
+// Groups classified rows into themed sections and renders sticky-note clusters.
+async function drawStickyNotes(rows: ClassifiedRow[]): Promise<FrameNode> {
+  await figma.loadFontAsync(FONT_REGULAR);
+  await figma.loadFontAsync(FONT_BOLD);
+
+  const board_frame = createLayoutFrame();
+  board_frame.name = "Figcomment Sticky Notes";
+  const grouped_rows = groupRowsByLens(rows);
+  const board_width = getStickyNotesBoardWidth(
+    getMaxCommentsPerSection(grouped_rows),
+  );
+  board_frame.layoutMode = "VERTICAL";
+  board_frame.resize(board_width, 1);
+  board_frame.primaryAxisSizingMode = "AUTO";
+  board_frame.counterAxisSizingMode = "FIXED";
+  board_frame.itemSpacing = 24;
+  board_frame.paddingLeft = 24;
+  board_frame.paddingRight = 24;
+  board_frame.paddingTop = 24;
+  board_frame.paddingBottom = 24;
+  board_frame.fills = [{ type: "SOLID", color: { r: 0.98, g: 0.99, b: 1 } }];
+  board_frame.cornerRadius = 12;
+
+  for (const lens of LENS_DISPLAY_ORDER) {
+    const section_rows = grouped_rows.get(lens);
+    if (!section_rows || section_rows.length === 0) {
+      continue;
+    }
+
+    const theme_style = getThemeStyle(lens);
+    const theme_label = formatCritiqueLens(lens);
+    const section_frame = createLayoutFrame();
+    section_frame.name = `Theme: ${theme_label}`;
+    section_frame.layoutMode = "VERTICAL";
+    section_frame.primaryAxisSizingMode = "AUTO";
+    section_frame.counterAxisSizingMode = "FIXED";
+    section_frame.itemSpacing = 16;
+    section_frame.paddingLeft = 16;
+    section_frame.paddingRight = 16;
+    section_frame.paddingTop = 16;
+    section_frame.paddingBottom = 16;
+    section_frame.fills = [
+      { type: "SOLID", color: theme_style.section_bg },
+    ];
+    section_frame.cornerRadius = 10;
+
+    const header_frame = createLayoutFrame();
+    header_frame.name = "Theme header";
+    header_frame.layoutMode = "VERTICAL";
+    header_frame.primaryAxisSizingMode = "AUTO";
+    header_frame.counterAxisSizingMode = "AUTO";
+    header_frame.itemSpacing = 6;
+    header_frame.paddingLeft = 0;
+    header_frame.paddingRight = 0;
+    header_frame.paddingTop = 12;
+    header_frame.paddingBottom = 12;
+    header_frame.fills = [];
+    header_frame.cornerRadius = 8;
+
+    const title_node = createTextNode(theme_label, FONT_BOLD, 14, {
+      r: 0.13,
+      g: 0.16,
+      b: 0.2,
+    });
+    const summary_node = createTextNode(
+      summarizeTheme(theme_label, section_rows),
+      FONT_REGULAR,
+      11,
+      { r: 0.2, g: 0.24, b: 0.3 },
+    );
+    header_frame.appendChild(title_node);
+    header_frame.appendChild(summary_node);
+    summary_node.layoutSizingHorizontal = "FILL";
+    section_frame.appendChild(header_frame);
+    header_frame.layoutSizingHorizontal = "FILL";
+
+    const comments_frame = createLayoutFrame();
+    comments_frame.name = "Comments";
+    comments_frame.layoutMode = "HORIZONTAL";
+    comments_frame.primaryAxisSizingMode = "AUTO";
+    comments_frame.counterAxisSizingMode = "AUTO";
+    comments_frame.itemSpacing = 16;
+    comments_frame.fills = [];
+
+    for (const row of section_rows) {
+      const comment_card = createCommentCard(row, theme_style.note_fill);
+      comments_frame.appendChild(comment_card);
+      comment_card.layoutSizingVertical = "HUG";
+    }
+
+    section_frame.appendChild(comments_frame);
+    comments_frame.layoutSizingHorizontal = "FILL";
+    board_frame.appendChild(section_frame);
+    section_frame.layoutSizingHorizontal = "FILL";
+  }
+
+  appendUnmappedLensSections(board_frame, grouped_rows);
+
+  const center = figma.viewport.center;
+  board_frame.x = center.x - board_frame.width / 2;
+  board_frame.y = center.y - board_frame.height / 2;
+
+  figma.currentPage.appendChild(board_frame);
+  return board_frame;
+}
+
+// Creates one comment card for a classified row inside a themed section.
+function createCommentCard(row: ClassifiedRow, card_fill: RgbColor): FrameNode {
+  const comment_frame = createLayoutFrame();
+  comment_frame.name = "Comment";
+  comment_frame.layoutMode = "VERTICAL";
+  comment_frame.resize(150, 1);
+  comment_frame.primaryAxisSizingMode = "AUTO";
+  comment_frame.counterAxisSizingMode = "FIXED";
+  comment_frame.itemSpacing = 6;
+  comment_frame.paddingLeft = 12;
+  comment_frame.paddingRight = 12;
+  comment_frame.paddingTop = 12;
+  comment_frame.paddingBottom = 12;
+  comment_frame.fills = [{ type: "SOLID", color: card_fill }];
+  comment_frame.cornerRadius = 0;
+  comment_frame.effects = [FIGJAM_STICKY_DROP_SHADOW];
+
+  const text_color = { r: 0.13, g: 0.16, b: 0.2 };
+
+  const author_node = createTextNode(
+    `${row.person} said`,
+    FONT_BOLD,
+    11,
+    text_color,
+  );
+  const feedback_node = createTextNode(row.feedback, FONT_REGULAR, 11, text_color);
+
+  comment_frame.appendChild(author_node);
+  comment_frame.appendChild(feedback_node);
+  feedback_node.layoutSizingHorizontal = "FILL";
+  return comment_frame;
+}
+
+// Serializes classified rows and asks the plugin UI to download a CSV file.
+function exportCsv(rows: ClassifiedRow[]): void {
+  const csv_content = rowsToCsv(rows);
+  const export_date = new Date().toISOString().slice(0, 10);
+
+  figma.ui.postMessage({
+    type: "download_csv",
+    csv: csv_content,
+    filename: `figcomment-export-${export_date}.csv`,
+  });
+}
+
+// Converts classified rows into RFC4180-style CSV content.
+function rowsToCsv(rows: ClassifiedRow[]): string {
+  const headers = ["Person", "Feedback", "Type", "Critique Lens"];
+  const lines = rows.map((row) =>
+    [
+      escapeCsvField(row.person),
+      escapeCsvField(row.feedback),
+      escapeCsvField(row.type),
+      escapeCsvField(formatCritiqueLens(row.critique_lens)),
+    ].join(","),
+  );
+
+  return [headers.join(","), ...lines].join("\n");
+}
+
+// Escapes CSV values that contain commas, quotes, or line breaks.
+function escapeCsvField(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+
+  return value;
+}
+
+// Groups rows by critique lens so themed sections can be rendered together.
+function groupRowsByLens(rows: ClassifiedRow[]): Map<string, ClassifiedRow[]> {
+  const grouped_rows = new Map<string, ClassifiedRow[]>();
+
+  for (const row of rows) {
+    const existing_rows = grouped_rows.get(row.critique_lens) ?? [];
+    existing_rows.push(row);
+    grouped_rows.set(row.critique_lens, existing_rows);
+  }
+
+  return grouped_rows;
+}
+
+// Adds any unexpected critique lens values that were not in the display order list.
+function appendUnmappedLensSections(
+  board_frame: FrameNode,
+  grouped_rows: Map<string, ClassifiedRow[]>,
+): void {
+  const known_lenses = new Set<string>(LENS_DISPLAY_ORDER);
+
+  for (const [lens, section_rows] of grouped_rows.entries()) {
+    if (known_lenses.has(lens) || section_rows.length === 0) {
+      continue;
+    }
+
+    const theme_style = getThemeStyle(lens);
+    const theme_label = formatCritiqueLens(lens);
+    const section_frame = createLayoutFrame();
+    section_frame.name = `Theme: ${theme_label}`;
+    section_frame.layoutMode = "VERTICAL";
+    section_frame.primaryAxisSizingMode = "AUTO";
+    section_frame.counterAxisSizingMode = "FIXED";
+    section_frame.itemSpacing = 16;
+    section_frame.paddingLeft = 16;
+    section_frame.paddingRight = 16;
+    section_frame.paddingTop = 16;
+    section_frame.paddingBottom = 16;
+    section_frame.fills = [
+      { type: "SOLID", color: theme_style.section_bg },
+    ];
+    section_frame.cornerRadius = 10;
+
+    const header_frame = createLayoutFrame();
+    header_frame.layoutMode = "VERTICAL";
+    header_frame.primaryAxisSizingMode = "AUTO";
+    header_frame.counterAxisSizingMode = "AUTO";
+    header_frame.itemSpacing = 6;
+    header_frame.paddingLeft = 0;
+    header_frame.paddingRight = 0;
+    header_frame.paddingTop = 12;
+    header_frame.paddingBottom = 12;
+    header_frame.fills = [];
+    header_frame.cornerRadius = 8;
+    header_frame.appendChild(
+      createTextNode(theme_label, FONT_BOLD, 14, { r: 0.13, g: 0.16, b: 0.2 }),
+    );
+    const summary_node = createTextNode(
+      summarizeTheme(theme_label, section_rows),
+      FONT_REGULAR,
+      11,
+      { r: 0.2, g: 0.24, b: 0.3 },
+    );
+    header_frame.appendChild(summary_node);
+    summary_node.layoutSizingHorizontal = "FILL";
+    section_frame.appendChild(header_frame);
+    header_frame.layoutSizingHorizontal = "FILL";
+
+    const comments_frame = createLayoutFrame();
+    comments_frame.name = "Comments";
+    comments_frame.layoutMode = "HORIZONTAL";
+    comments_frame.primaryAxisSizingMode = "AUTO";
+    comments_frame.counterAxisSizingMode = "AUTO";
+    comments_frame.itemSpacing = 16;
+    comments_frame.fills = [];
+
+    for (const row of section_rows) {
+      const comment_card = createCommentCard(row, theme_style.note_fill);
+      comments_frame.appendChild(comment_card);
+      comment_card.layoutSizingVertical = "HUG";
+    }
+
+    section_frame.appendChild(comments_frame);
+    comments_frame.layoutSizingHorizontal = "FILL";
+    board_frame.appendChild(section_frame);
+    section_frame.layoutSizingHorizontal = "FILL";
+  }
+}
+
+// Returns the largest number of comments in any single themed section.
+function getMaxCommentsPerSection(
+  grouped_rows: Map<string, ClassifiedRow[]>,
+): number {
+  let max_comments = 0;
+
+  for (const section_rows of grouped_rows.values()) {
+    max_comments = Math.max(max_comments, section_rows.length);
+  }
+
+  return max_comments;
+}
+
+// Picks a fixed board width based on how many comments fit per section.
+function getStickyNotesBoardWidth(max_comments_per_section: number): number {
+  if (max_comments_per_section > 4) {
+    return 750;
+  }
+
+  return 500;
+}
+
+// Builds a short section summary from grouped comment metadata.
+function summarizeTheme(theme_label: string, rows: ClassifiedRow[]): string {
+  const contributors = [...new Set(rows.map((row) => row.person))];
+  const type_counts = rows.reduce<Record<string, number>>((counts, row) => {
+    const type_label = formatFeedbackType(row.type);
+    counts[type_label] = (counts[type_label] ?? 0) + 1;
+    return counts;
+  }, {});
+
+  const type_summary = Object.entries(type_counts)
+    .map(([type_label, count]) => `${count} ${type_label}`)
+    .join(", ");
+
+  const contributor_summary =
+    contributors.length === 1
+      ? contributors[0]
+      : `${contributors.length} people (${contributors.slice(0, 3).join(", ")}${
+          contributors.length > 3 ? ", ..." : ""
+        })`;
+
+  return `${rows.length} comment${
+    rows.length === 1 ? "" : "s"
+  } on ${theme_label.toLowerCase()} from ${contributor_summary}. Includes ${type_summary}.`;
+}
+
+// Strips altitude prefixes so section titles read cleanly on canvas.
+function formatCritiqueLens(lens: string): string {
+  return lens.replace(/^(Low|Medium|High) - /, "");
+}
+
+// Resolves section colors for a critique lens with a neutral fallback.
+function getThemeStyle(lens: string): ThemeStyle {
+  if (lens in THEME_STYLES) {
+    return THEME_STYLES[lens as CritiqueLens];
+  }
+
+  return DEFAULT_THEME_STYLE;
+}
+
+// Creates a frame that does not clip child content such as drop shadows.
+function createLayoutFrame(): FrameNode {
+  const frame = figma.createFrame();
+  frame.clipsContent = false;
+  return frame;
+}
+
+// Creates a reusable text node with explicit font and color styling.
+function createTextNode(
+  value: string,
+  font: FontName,
+  font_size: number,
+  color: RgbColor,
+): TextNode {
+  const text_node = figma.createText();
+  text_node.fontName = font;
+  text_node.fontSize = font_size;
+  text_node.characters = value;
+  text_node.textAutoResize = "HEIGHT";
+  text_node.fills = [{ type: "SOLID", color }];
+  return text_node;
+}
+
 // Creates one row with fixed-width cells so output is readable in recordings.
 function createRow(values: string[], is_header: boolean): FrameNode {
-  const row_frame = figma.createFrame();
+  const row_frame = createLayoutFrame();
   row_frame.layoutMode = "HORIZONTAL";
   row_frame.primaryAxisSizingMode = "AUTO";
   row_frame.counterAxisSizingMode = "AUTO";
@@ -192,11 +661,11 @@ function createRow(values: string[], is_header: boolean): FrameNode {
 
   const cell_widths = [140, 400, 120, 320];
   values.forEach((value, index) => {
-    const cell = figma.createFrame();
+    const cell = createLayoutFrame();
     cell.layoutMode = "VERTICAL";
-    cell.primaryAxisSizingMode = "FIXED";
-    cell.counterAxisSizingMode = "FIXED";
     cell.resize(cell_widths[index] ?? 120, 54);
+    cell.primaryAxisSizingMode = "AUTO";
+    cell.counterAxisSizingMode = "FIXED";
     cell.paddingLeft = 10;
     cell.paddingRight = 10;
     cell.paddingTop = 8;
@@ -212,14 +681,21 @@ function createRow(values: string[], is_header: boolean): FrameNode {
     text_node.fontName = is_header ? FONT_BOLD : FONT_REGULAR;
     text_node.fontSize = is_header ? 12 : 11;
     text_node.characters = value;
-    text_node.textAutoResize = "WIDTH_AND_HEIGHT";
+    text_node.textAutoResize = "HEIGHT";
     text_node.fills = [{ type: "SOLID", color: { r: 0.13, g: 0.16, b: 0.2 } }];
 
     cell.appendChild(text_node);
+    text_node.layoutSizingHorizontal = "FILL";
     row_frame.appendChild(cell);
+    cell.layoutSizingVertical = "FILL";
   });
 
   return row_frame;
+}
+
+// Prefixes each feedback type with a visual cue for quicker table scanning.
+function formatFeedbackType(type: FeedbackType): string {
+  return `${FEEDBACK_TYPE_EMOJI[type]} ${type}`;
 }
 
 // Sends progress updates to UI for clear demo narration.
@@ -242,7 +718,16 @@ function isUiRunMessage(value: unknown): value is UiRunMessage {
     return false;
   }
 
-  return (value as Record<string, unknown>).type === "run_analysis";
+  const record = value as Record<string, unknown>;
+  if (record.type !== "run_analysis") {
+    return false;
+  }
+
+  return (
+    record.output_format === "table" ||
+    record.output_format === "sticky_notes" ||
+    record.output_format === "csv"
+  );
 }
 
 // Minimal response guard to avoid rendering malformed backend payloads.

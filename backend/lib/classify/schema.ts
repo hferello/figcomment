@@ -3,7 +3,7 @@ import { z } from "zod";
 // Purpose: single source of truth for request/response contracts used by route + plugin.
 // Intent: fail fast on malformed data so UI rendering stays predictable.
 export const feedback_type_schema = z.enum([
-  "Comment",
+  "Thoughts",
   "Suggestion",
   "Action",
   "Idea",

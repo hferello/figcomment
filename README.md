@@ -6,7 +6,7 @@ This plugin turns unstructured Figma comments into a structured feedback table o
 
 - Reads comments from the active Figma file.
 - Uses AI to classify each comment into:
-  - `type`: `Comment`, `Suggestion`, `Action`, or `Idea`
+  - `type`: `Thoughts`, `Suggestion`, `Action`, or `Idea`
   - `critique_lens`:
     - `Low - Visual design`
     - `Low - Interaction design`

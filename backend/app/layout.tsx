@@ -9,7 +9,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Figcomment",
-  description: "Analyse, sort, and create actions for feedback.",
+  description: "Analyse and sort feedback from Figma comments.",
 };
 
 type RootLayoutProps = {

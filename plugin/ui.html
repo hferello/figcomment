@@ -12,7 +12,7 @@
 
       body {
         margin: 0;
-        padding: 16px;
+        padding: 18px;
       }
 
       .container {
@@ -21,14 +21,24 @@
         gap: 12px;
       }
 
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .brand svg {
+        flex-shrink: 0;
+      }
+
       h1 {
         margin: 0;
-        font-size: 16px;
+        font-size: 24px;
       }
 
       p {
         margin: 0;
-        font-size: 12px;
+        font-size: 16px;
         line-height: 1.4;
         color: #5f6670;
       }
@@ -41,14 +51,40 @@
         cursor: pointer;
       }
 
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .action-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: flex-start;
+        width: 100%;
+      }
+
+      .action-button svg {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
       .primary {
         background: #0f62fe;
         color: white;
+        font-size: 16px;
       }
 
       .status {
         min-height: 20px;
-        font-size: 12px;
+        font-size: 16px;
       }
 
       .error {
@@ -58,26 +94,144 @@
   </head>
   <body>
     <div class="container">
-      <h1>Figcomment</h1>
-      <p>Analyse, sort, and create actions for feedback.</p>
-      <button id="analyze_button" class="primary">Analyze comments</button>
+      <div class="brand">
+        <svg
+          width="36"
+          height="36"
+          viewBox="0 0 36 36"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M17.7627 0C27.5727 4.94794e-05 35.5254 7.95269 35.5254 17.7627C35.5252 27.2815 28.0375 35.0501 18.6309 35.5029V35.5254H0V17.7627C0 7.95266 7.95266 0 17.7627 0Z"
+            fill="#168EF9"
+          />
+          <path
+            d="M15.2627 11C15.6605 11 16.0421 11.158 16.3234 11.4393C16.6047 11.7206 16.7627 12.1022 16.7627 12.5V16.5C16.7627 16.8978 16.6047 17.2794 16.3234 17.5607C16.0421 17.842 15.6605 18 15.2627 18H11.2627C10.8649 18 10.4833 17.842 10.202 17.5607C9.92073 17.2794 9.7627 16.8978 9.7627 16.5V12.5C9.7627 12.1022 9.92073 11.7206 10.202 11.4393C10.4833 11.158 10.8649 11 11.2627 11H15.2627Z"
+            fill="white"
+          />
+          <path
+            d="M15.2627 20C15.6605 20 16.0421 20.158 16.3234 20.4393C16.6047 20.7206 16.7627 21.1022 16.7627 21.5V25.5C16.7627 25.8978 16.6047 26.2794 16.3234 26.5607C16.0421 26.842 15.6605 27 15.2627 27H11.2627C10.8649 27 10.4833 26.842 10.202 26.5607C9.92073 26.2794 9.7627 25.8978 9.7627 25.5V21.5C9.7627 21.1022 9.92073 20.7206 10.202 20.4393C10.4833 20.158 10.8649 20 11.2627 20H15.2627Z"
+            fill="black"
+          />
+          <path
+            d="M22.7627 12C23.0279 12 23.2823 12.1054 23.4698 12.2929C23.6573 12.4804 23.7627 12.7348 23.7627 13V22.584L25.0557 21.293C25.2279 21.1208 25.457 21.0174 25.7 21.0021C25.9431 20.9868 26.1833 21.0607 26.3757 21.21L26.4697 21.293C26.6572 21.4805 26.7625 21.7348 26.7625 22C26.7625 22.2652 26.6572 22.5195 26.4697 22.707L23.4697 25.707C23.4348 25.7421 23.3974 25.7745 23.3577 25.804L23.2477 25.875L23.1337 25.929L23.0287 25.964L22.8797 25.994L22.7627 26L22.6877 25.997L22.5617 25.98L22.4507 25.95L22.3397 25.906L22.2417 25.854L22.1457 25.787L22.0557 25.707L19.0557 22.707C18.8735 22.5184 18.7728 22.2658 18.775 22.0036C18.7773 21.7414 18.8825 21.4906 19.0679 21.3052C19.2533 21.1198 19.5041 21.0146 19.7663 21.0123C20.0285 21.01 20.2811 21.1108 20.4697 21.293L21.7627 22.586V13C21.7627 12.7348 21.8681 12.4804 22.0556 12.2929C22.2431 12.1054 22.4975 12 22.7627 12Z"
+            fill="white"
+          />
+        </svg>
+        <h1>Figcomment</h1>
+      </div>
+      <p>Analyse and sort feedback. Outputs:</p>
+      <div class="actions">
+        <button
+          id="table_button"
+          class="primary action-button"
+          data-output="table"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14" />
+            <path d="M3 10h18" />
+            <path d="M10 3v18" />
+          </svg>
+          <span>Table</span>
+        </button>
+        <button
+          id="sticky_notes_button"
+          class="primary action-button"
+          data-output="sticky_notes"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M6 4h12a2 2 0 0 1 2 2v7h-5a2 2 0 0 0 -2 2v5h-7a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
+            <path d="M20 13v.172a2 2 0 0 1 -.586 1.414l-4.828 4.828a2 2 0 0 1 -1.414 .586h-.172" />
+          </svg>
+          <span>Sticky notes</span>
+        </button>
+        <button
+          id="csv_button"
+          class="primary action-button"
+          data-output="csv"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+            <path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" />
+            <path d="M7 16.5a1.5 1.5 0 0 0 -3 0v3a1.5 1.5 0 0 0 3 0" />
+            <path d="M10 20.25c0 .414 .336 .75 .75 .75h1.25a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-1a1 1 0 0 1 -1 -1v-1a1 1 0 0 1 1 -1h1.25a.75 .75 0 0 1 .75 .75" />
+            <path d="M16 15l2 6l2 -6" />
+          </svg>
+          <span>CSV</span>
+        </button>
+      </div>
       <div id="status_text" class="status"></div>
     </div>
 
     <script>
-      const analyze_button = document.getElementById("analyze_button");
+      const action_buttons = Array.from(
+        document.querySelectorAll(".action-button"),
+      );
       const status_text = document.getElementById("status_text");
 
-      if (!analyze_button || !status_text) {
+      if (action_buttons.length === 0 || !status_text) {
         throw new Error("Required UI elements are missing.");
       }
 
-      analyze_button.addEventListener("click", () => {
-        analyze_button.disabled = true;
-        status_text.textContent = "Starting analysis...";
-        status_text.classList.remove("error");
+      function setActionButtonsDisabled(disabled) {
+        action_buttons.forEach((button) => {
+          button.disabled = disabled;
+        });
+      }
 
-        parent.postMessage({ pluginMessage: { type: "run_analysis" } }, "*");
+      action_buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const output_format = button.dataset.output;
+          if (!output_format) {
+            return;
+          }
+
+          setActionButtonsDisabled(true);
+          status_text.textContent = "Starting analysis...";
+          status_text.classList.remove("error");
+
+          parent.postMessage(
+            {
+              pluginMessage: {
+                type: "run_analysis",
+                output_format,
+              },
+            },
+            "*",
+          );
+        });
       });
 
       window.onmessage = (event) => {
@@ -94,13 +248,32 @@
         if (plugin_message.type === "error") {
           status_text.textContent = plugin_message.message;
           status_text.classList.add("error");
-          analyze_button.disabled = false;
+          setActionButtonsDisabled(false);
         }
 
         if (plugin_message.type === "complete") {
           status_text.textContent = plugin_message.message;
           status_text.classList.remove("error");
-          analyze_button.disabled = false;
+          setActionButtonsDisabled(false);
+        }
+
+        if (plugin_message.type === "download_csv") {
+          if (
+            typeof plugin_message.csv !== "string" ||
+            typeof plugin_message.filename !== "string"
+          ) {
+            return;
+          }
+
+          const blob = new Blob([plugin_message.csv], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const download_url = URL.createObjectURL(blob);
+          const download_link = document.createElement("a");
+          download_link.href = download_url;
+          download_link.download = plugin_message.filename;
+          download_link.click();
+          URL.revokeObjectURL(download_url);
         }
       };
     </script>

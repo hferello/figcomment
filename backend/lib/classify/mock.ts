@@ -8,7 +8,7 @@ const seeded_rows: ClassifiedRow[] = [
     person: "Priya",
     feedback:
       "The notification card feels cramped on mobile, especially with three action buttons stacked vertically.",
-    type: "Comment",
+    type: "Thoughts",
     critique_lens: "Low - Visual design",
   },
   {
@@ -29,7 +29,7 @@ const seeded_rows: ClassifiedRow[] = [
     person: "Devon",
     feedback:
       'Not clear what "Sync" actually does here - is it pulling new comments or pushing our reply back to Jira?',
-    type: "Comment",
+    type: "Thoughts",
     critique_lens: "High - Underlying model, business rules and logic",
   },
   {
@@ -43,7 +43,7 @@ const seeded_rows: ClassifiedRow[] = [
     person: "Sam",
     feedback:
       'Color contrast on the "Resolved" tag fails WCAG AA against this background - worth checking the palette.',
-    type: "Comment",
+    type: "Thoughts",
     critique_lens: "Low - Visual design",
   },
   {
@@ -119,7 +119,7 @@ function guess_type(normalized_feedback: string): ClassifiedRow["type"] {
     return "Suggestion";
   }
 
-  return "Comment";
+  return "Thoughts";
 }
 
 // Maps feedback text into the merged critique lens taxonomy.

@@ -9,7 +9,7 @@ Return JSON with this shape:
     {
       "person": string,
       "feedback": string,
-      "type": "Comment" | "Suggestion" | "Action" | "Idea",
+      "type": "Thoughts" | "Suggestion" | "Action" | "Idea",
       "critique_lens":
         "Low - Visual design" |
         "Low - Interaction design" |
@@ -28,7 +28,7 @@ Taxonomy rules:
 - High labels are conceptual/system critique: logic/rules, user problems, business opportunities.
 
 Type rules:
-- Comment: statement/observation
+- Thoughts: statement/observation
 - Suggestion: recommendation phrased as possibility
 - Action: direct requested change
 - Idea: exploratory feature concept
