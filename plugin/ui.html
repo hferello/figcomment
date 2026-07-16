@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comment Intelligence Demo</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 16px;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.4;
+        color: #5f6670;
+      }
+
+      button {
+        border: none;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .primary {
+        background: #0f62fe;
+        color: white;
+      }
+
+      .status {
+        min-height: 20px;
+        font-size: 12px;
+      }
+
+      .error {
+        color: #b00020;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Comment Intelligence Demo</h1>
+      <p>Analyze Figma comments and render a structured table on canvas.</p>
+      <button id="analyze_button" class="primary">Analyze comments</button>
+      <div id="status_text" class="status"></div>
+    </div>
+
+    <script>
+      const analyze_button = document.getElementById("analyze_button");
+      const status_text = document.getElementById("status_text");
+
+      if (!analyze_button || !status_text) {
+        throw new Error("Required UI elements are missing.");
+      }
+
+      analyze_button.addEventListener("click", () => {
+        analyze_button.disabled = true;
+        status_text.textContent = "Starting analysis...";
+        status_text.classList.remove("error");
+
+        parent.postMessage({ pluginMessage: { type: "run_analysis" } }, "*");
+      });
+
+      window.onmessage = (event) => {
+        const plugin_message = event.data.pluginMessage;
+        if (!plugin_message || typeof plugin_message !== "object") {
+          return;
+        }
+
+        if (plugin_message.type === "status") {
+          status_text.textContent = plugin_message.message;
+          status_text.classList.remove("error");
+        }
+
+        if (plugin_message.type === "error") {
+          status_text.textContent = plugin_message.message;
+          status_text.classList.add("error");
+          analyze_button.disabled = false;
+        }
+
+        if (plugin_message.type === "complete") {
+          status_text.textContent = plugin_message.message;
+          status_text.classList.remove("error");
+          analyze_button.disabled = false;
+        }
+      };
+    </script>
+  </body>
+</html>
