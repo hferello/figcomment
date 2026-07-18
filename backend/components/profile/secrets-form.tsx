@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useTransition, type SubmitEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition, type ReactNode, type SubmitEvent } from "react";
 import { saveUserSecretsAction } from "@/app/actions/secrets";
+import { FigmaTokenGuideDialog } from "@/components/profile/figma-token-guide-dialog";
 import { PasswordField } from "@/components/shared/password-field";
 import {
   StatusAlert,
@@ -18,6 +20,9 @@ import {
 } from "@/components/ui/field";
 import type { SecretStatus } from "@/lib/user-secrets/service";
 
+/** Fake filled value so a saved field looks occupied without exposing the real secret. */
+const MASKED_SECRET_DISPLAY = "xxxxxxxxxxxxxxxxxxxxxxxx";
+
 type SecretsFormProps = {
   initial_status: SecretStatus;
   is_email_confirmed: boolean;
@@ -28,10 +33,14 @@ type SecretCredentialFieldProps = {
   name: string;
   label: string;
   is_saved: boolean;
+  is_locked: boolean;
   value: string;
   empty_placeholder: string;
   saved_placeholder: string;
   description: string;
+  locked_description: string;
+  disabled?: boolean;
+  label_action?: ReactNode;
   onValueChange: (value: string) => void;
 };
 
@@ -40,29 +49,40 @@ function SecretCredentialField({
   name,
   label,
   is_saved,
+  is_locked,
   value,
   empty_placeholder,
   saved_placeholder,
   description,
+  locked_description,
+  disabled = false,
+  label_action,
   onValueChange,
 }: SecretCredentialFieldProps) {
   return (
     <Field>
-      <div className="flex items-center justify-between gap-fc-12">
-        <FieldLabel htmlFor={id}>{label}</FieldLabel>
-        <span className="text-fc-12 font-medium">
+      <div className="flex items-baseline justify-between gap-fc-12">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-fc-12 gap-y-fc-6">
+          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          {label_action}
+        </div>
+        <span className="shrink-0 text-fc-12 font-medium">
           {is_saved ? "Saved" : "Not saved"}
         </span>
       </div>
       <PasswordField
         id={id}
-        name={name}
-        value={value}
+        name={is_locked ? undefined : name}
+        value={is_locked ? MASKED_SECRET_DISPLAY : value}
+        disabled={disabled || is_locked}
         onChange={(event) => onValueChange(event.target.value)}
         autoComplete="off"
         placeholder={is_saved ? saved_placeholder : empty_placeholder}
+        readOnly={is_locked}
       />
-      <FieldDescription>{description}</FieldDescription>
+      <FieldDescription>
+        {is_locked ? locked_description : description}
+      </FieldDescription>
     </Field>
   );
 }
@@ -74,11 +94,24 @@ export function SecretsForm({
   initial_status,
   is_email_confirmed,
 }: SecretsFormProps) {
+  const router = useRouter();
   const [status, setStatus] = useState(initial_status);
   const [figma_token, setFigmaToken] = useState("");
   const [anthropic_key, setAnthropicKey] = useState("");
+  const [is_replacing, setIsReplacing] = useState(false);
   const [notice, setNotice] = useState<StatusNotice | null>(null);
   const [is_pending, startTransition] = useTransition();
+
+  // Only both-saved locks the form behind Replace; one saved still allows saving the other.
+  const show_replace_action =
+    status.figma_saved && status.anthropic_saved && !is_replacing;
+
+  function handleReplaceTokens() {
+    setNotice(null);
+    setFigmaToken("");
+    setAnthropicKey("");
+    setIsReplacing(true);
+  }
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -107,10 +140,13 @@ export function SecretsForm({
         setStatus(result.data);
         setFigmaToken("");
         setAnthropicKey("");
+        setIsReplacing(false);
         setNotice({
           kind: "success",
           message: "Credentials saved and encrypted. Their values will not be shown again.",
         });
+        // Re-render PluginTokenControls so Create unlocks when both secrets are saved.
+        router.refresh();
       } catch (error) {
         console.error("[SecretsForm] unexpected_error", error);
         setNotice({ kind: "error", message: "Could not save credentials. Please try again." });
@@ -118,9 +154,12 @@ export function SecretsForm({
     });
   }
 
+  // Disable inputs/submit only — keep the Figma guide link usable inside the fieldset.
+  const are_fields_disabled = !is_email_confirmed || is_pending;
+
   return (
     <form onSubmit={handleSubmit} className="rounded-fc-24 bg-fc-bg p-fc-24">
-      <FieldSet disabled={!is_email_confirmed || is_pending}>
+      <FieldSet>
         <FieldLegend>Encrypted credentials</FieldLegend>
         <StatusAlert
           notice={notice}
@@ -134,10 +173,14 @@ export function SecretsForm({
             name="figma_token"
             label="Figma personal access token"
             is_saved={status.figma_saved}
+            is_locked={status.figma_saved && !is_replacing}
             value={figma_token}
             empty_placeholder="figd_…"
             saved_placeholder="Enter a replacement token"
             description="Omit this field to keep the currently saved Figma token."
+            locked_description="Saved securely. Click Replace tokens to enter a new value."
+            disabled={are_fields_disabled}
+            label_action={<FigmaTokenGuideDialog />}
             onValueChange={setFigmaToken}
           />
           <SecretCredentialField
@@ -145,17 +188,37 @@ export function SecretsForm({
             name="anthropic_key"
             label="Anthropic API key"
             is_saved={status.anthropic_saved}
+            is_locked={status.anthropic_saved && !is_replacing}
             value={anthropic_key}
             empty_placeholder="sk-ant-…"
             saved_placeholder="Enter a replacement key"
             description="Omit this field to keep the currently saved Anthropic key."
+            locked_description="Saved securely. Click Replace tokens to enter a new value."
+            disabled={are_fields_disabled}
             onValueChange={setAnthropicKey}
           />
         </FieldGroup>
 
-        <Button type="submit" size="lg" className="w-full">
-          {is_pending ? "Encrypting…" : "Save credentials"}
-        </Button>
+        {show_replace_action ? (
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            disabled={are_fields_disabled}
+            onClick={handleReplaceTokens}
+          >
+            Replace tokens
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full"
+            disabled={are_fields_disabled}
+          >
+            {is_pending ? "Encrypting…" : "Save credentials"}
+          </Button>
+        )}
       </FieldSet>
     </form>
   );

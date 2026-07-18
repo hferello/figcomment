@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { DeleteAccountSection } from "@/components/profile/delete-account-section";
 import { PluginTokenSection } from "@/components/profile/plugin-token-section";
+import { ProfileSignOut } from "@/components/profile/profile-sign-out";
 import { SecretsSection } from "@/components/profile/secrets-section";
 import { SignOutButton } from "@/components/profile/sign-out-button";
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -32,7 +33,9 @@ export default function ProfilePage() {
         <div>
           <BrandMark />
         </div>
-        <SignOutButton />
+        <Suspense fallback={<SignOutButton />}>
+          <ProfileSignOut />
+        </Suspense>
       </header>
 
       <section className="mb-fc-24 rounded-fc-36 bg-fc-panel-lavender p-fc-24 md:p-fc-48">
@@ -78,12 +81,6 @@ async function ProfilePrivateData() {
 
   return (
     <>
-      {user.email ? (
-        <p className="mb-fc-24 text-fc-14 text-muted-foreground">
-          {user.email}
-        </p>
-      ) : null}
-
       {!is_email_confirmed ? (
         <Alert className="mb-fc-24">
           <AlertTitle>Email confirmation required</AlertTitle>
@@ -101,6 +98,7 @@ async function ProfilePrivateData() {
         />
         <PluginTokenSection
           initial_metadata={token_metadata}
+          secret_status={secret_status}
           is_email_confirmed={is_email_confirmed}
         />
         {user.email ? (
@@ -114,7 +112,6 @@ async function ProfilePrivateData() {
 function ProfilePrivateFallback() {
   return (
     <div aria-busy="true" aria-label="Loading profile data">
-      <div className="mb-fc-24 h-fc-14 w-fc-96 animate-pulse rounded-fc-24 bg-fc-ink/12" />
       <div className="grid gap-fc-24">
         <div className="h-fc-96 animate-pulse rounded-fc-36 bg-fc-panel-cyan" />
         <div className="h-fc-96 animate-pulse rounded-fc-36 bg-fc-panel-mint" />

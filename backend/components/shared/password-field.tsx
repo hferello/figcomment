@@ -13,6 +13,7 @@ type PasswordFieldProps = Omit<ComponentProps<typeof Input>, "type">;
 export function PasswordField({
   className,
   id,
+  disabled,
   ...input_props
 }: PasswordFieldProps) {
   const [is_visible, setIsVisible] = useState(false);
@@ -22,21 +23,24 @@ export function PasswordField({
       <Input
         {...input_props}
         id={id}
-        type={is_visible ? "text" : "password"}
-        className={cn("pr-fc-96", className)}
+        disabled={disabled}
+        type={is_visible && !disabled ? "text" : "password"}
+        className={cn(disabled ? "pr-fc-18" : "pr-fc-96", className)}
       />
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        aria-controls={id}
-        aria-label={is_visible ? "Hide password" : "Show password"}
-        aria-pressed={is_visible}
-        className="absolute inset-y-0 right-fc-12 my-auto"
-        onClick={() => setIsVisible((current_value) => !current_value)}
-      >
-        {is_visible ? "Hide" : "Show"}
-      </Button>
+      {!disabled ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-controls={id}
+          aria-label={is_visible ? "Hide password" : "Show password"}
+          aria-pressed={is_visible}
+          className="absolute inset-y-0 right-fc-12 my-auto"
+          onClick={() => setIsVisible((current_value) => !current_value)}
+        >
+          {is_visible ? "Hide" : "Show"}
+        </Button>
+      ) : null}
     </div>
   );
 }

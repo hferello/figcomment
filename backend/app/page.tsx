@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { BrandMark } from "@/components/shared/brand-mark";
+import { HowItWorksSteps } from "@/components/shared/how-it-works-steps";
 import { IllustrationSlot } from "@/components/shared/illustration-slot";
 import { PageFrame } from "@/components/shared/page-frame";
 import { buttonVariants } from "@/components/ui/button";
@@ -66,63 +66,43 @@ export default function HomePage() {
           </h2>
         </div>
 
-        <ol className="grid gap-fc-24 lg:grid-cols-3">
-          <li className="relative gap-fc-18 rounded-fc-36 bg-fc-panel-peach p-fc-24 md:gap-fc-24 md:p-fc-36">
-            <span className="text-fc-72">01</span>
-            <h3 className="mt-fc-18 font-display text-fc-36 leading-none font-bold">
-              Save your keys
-            </h3>
-            <p className="mt-fc-18 text-fc-18 leading-relaxed">
-              Add your Figma PAT and Anthropic key. Both are encrypted before
-              storage.
-            </p>
-
-            <Image
-              src="/illustrations/keys.svg"
-              alt="A person holding a key"
-              width={128}
-              height={128}
-              aria-hidden
-              className="shrink-0 absolute top-4 right-4"
-            />
-          </li>
-          <li className="relative gap-fc-18 rounded-fc-36 bg-fc-panel-lavender p-fc-24 md:gap-fc-24 md:p-fc-36">
-            <span className="text-fc-72">02</span>
-            <h3 className="mt-fc-18 font-display text-fc-36 leading-none font-bold">
-              Copy one token
-            </h3>
-            <p className="mt-fc-18 text-fc-18 leading-relaxed">
-              Generate a copy-once plugin token. The server stores only its
-              secure hash.
-            </p>
-            <Image
-              src="/illustrations/token.svg"
-              alt="A person holding a token"
-              width={128}
-              height={128}
-              aria-hidden
-              className="shrink-0 absolute top-4 right-4"
-            />
-          </li>
-          <li className="relative gap-fc-18 rounded-fc-36 bg-fc-panel-cyan p-fc-24 md:gap-fc-24 md:p-fc-36">
-            <span className="text-fc-72">03</span>
-            <h3 className="mt-fc-18 font-display text-fc-36 leading-none font-bold">
-              Sort the feedback
-            </h3>
-            <p className="mt-fc-18 text-fc-18 leading-relaxed">
-              Run Figcomment inside Figma and turn comment noise into useful
-              groups and actions.
-            </p>
-            <Image
-              src="/illustrations/sort.svg"
-              alt="A person sorting speech bubbles"
-              width={128}
-              height={128}
-              aria-hidden
-              className="shrink-0 absolute top-4 right-4"
-            />
-          </li>
-        </ol>
+        <HowItWorksSteps
+          steps={[
+            {
+              step: "01",
+              title: "Save your keys",
+              description:
+                "Add your Figma PAT and Anthropic key. Both are encrypted before storage.",
+              tone: "peach",
+              illustration: {
+                src: "/illustrations/keys.svg",
+                alt: "A person holding a key",
+              },
+            },
+            {
+              step: "02",
+              title: "Copy one token",
+              description:
+                "Generate a copy-once plugin token. The server stores only its secure hash.",
+              tone: "lavender",
+              illustration: {
+                src: "/illustrations/token.svg",
+                alt: "A person holding a token",
+              },
+            },
+            {
+              step: "03",
+              title: "Sort the feedback",
+              description:
+                "Run Figcomment inside Figma and turn comment noise into useful groups and actions.",
+              tone: "cyan",
+              illustration: {
+                src: "/illustrations/sort.svg",
+                alt: "A person sorting speech bubbles",
+              },
+            },
+          ]}
+        />
       </section>
 
       <footer className="flex flex-col gap-fc-18 border-t border-fc-ink/24 pt-fc-24 text-fc-14 md:flex-row md:items-center md:justify-between">

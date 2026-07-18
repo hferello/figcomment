@@ -26,7 +26,7 @@ export async function mintPluginTokenAction(): Promise<
   console.log("[mintPluginTokenAction] started");
 
   try {
-    // Step 1: email confirmed + one-active-token rule enforced in service layer.
+    // Step 1: email confirmed; secrets + one-active-token rules live in the service.
     const user = await requireEmailConfirmedUser();
 
     // Step 2: generate fc_… token, store hash, return full token once.

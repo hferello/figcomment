@@ -12,7 +12,7 @@ type ProfileFeaturePanelProps = {
   illustration: {
     src: string;
     alt: string;
-    caption: string;
+    caption?: string;
   };
   children: ReactNode;
 };

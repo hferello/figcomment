@@ -9,6 +9,7 @@ import { ActionError } from "@/lib/auth/action-error";
 import { generatePluginToken } from "@/lib/crypto/plugin-token";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getSecretStatus } from "@/lib/user-secrets/service";
 
 export type PluginTokenMetadata = {
   id: string;
@@ -63,11 +64,22 @@ export async function getActivePluginTokenMetadata(
 }
 
 /**
- * Mint a new plugin token. Rejects if an active token already exists (use rotate).
+ * Mint a new plugin token. Requires both provider secrets; rejects if an active token exists.
  */
 export async function mintPluginToken(user_id: string): Promise<MintPluginTokenResult> {
   console.log("[mintPluginToken] started", { user_id });
 
+  // Step 1: both encrypted credentials must exist before a plugin token is useful.
+  const secret_status = await getSecretStatus(user_id);
+  if (!secret_status.figma_saved || !secret_status.anthropic_saved) {
+    console.error("[mintPluginToken] secrets_required", { user_id, ...secret_status });
+    throw new ActionError(
+      "secrets_required",
+      "Save both your Figma token and Anthropic key before creating a plugin token.",
+    );
+  }
+
+  // Step 2: one-active-token rule — rotate/revoke instead of minting a second.
   const active = await getActivePluginTokenMetadata(user_id);
   if (active) {
     console.error("[mintPluginToken] active_token_exists", { user_id, token_id: active.id });

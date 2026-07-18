@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 type IllustrationSlotProps = {
   src: string;
   alt: string;
-  caption: string;
+  caption?: string;
   className?: string;
 };
 
@@ -27,9 +27,11 @@ export function IllustrationSlot({
         height={420}
         className="h-auto w-full"
       />
-      <figcaption className="mt-fc-12 text-center text-fc-24 text-fc-ink/48">
-        {caption}
-      </figcaption>
+      {caption ? (
+        <figcaption className="mt-fc-12 text-center text-fc-24 text-fc-ink/48">
+          {caption}
+        </figcaption>
+      ) : null}
     </figure>
   );
 }

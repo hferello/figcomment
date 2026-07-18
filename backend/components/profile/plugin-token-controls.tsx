@@ -17,11 +17,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { PluginTokenMetadata } from "@/lib/plugin-tokens/service";
+import type { SecretStatus } from "@/lib/user-secrets/service";
 
 dayjs.extend(utc);
 
 type PluginTokenControlsProps = {
   initial_metadata: PluginTokenMetadata | null;
+  secret_status: SecretStatus;
   is_email_confirmed: boolean;
 };
 
@@ -45,6 +47,7 @@ function formatDate(value: string | null): string {
  */
 export function PluginTokenControls({
   initial_metadata,
+  secret_status,
   is_email_confirmed,
 }: PluginTokenControlsProps) {
   const [metadata, setMetadata] = useState(initial_metadata);
@@ -52,6 +55,12 @@ export function PluginTokenControls({
   const [notice, setNotice] = useState<StatusNotice | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [is_pending, startTransition] = useTransition();
+
+  // Prop (not state) so a secrets save + router.refresh() re-enables Create immediately.
+  const are_secrets_ready =
+    secret_status.figma_saved && secret_status.anthropic_saved;
+  const can_create_token =
+    is_email_confirmed && are_secrets_ready && !is_pending;
 
   function handleMint() {
     setNotice(null);
@@ -72,7 +81,10 @@ export function PluginTokenControls({
         });
       } catch (error) {
         console.error("[PluginTokenControls] mint_unexpected_error", error);
-        setNotice({ kind: "error", message: "Could not create a token. Please try again." });
+        setNotice({
+          kind: "error",
+          message: "Could not create a token. Please try again.",
+        });
       }
     });
   }
@@ -97,7 +109,10 @@ export function PluginTokenControls({
         });
       } catch (error) {
         console.error("[PluginTokenControls] rotate_unexpected_error", error);
-        setNotice({ kind: "error", message: "Could not rotate the token. Please try again." });
+        setNotice({
+          kind: "error",
+          message: "Could not rotate the token. Please try again.",
+        });
       }
     });
   }
@@ -122,7 +137,10 @@ export function PluginTokenControls({
         });
       } catch (error) {
         console.error("[PluginTokenControls] revoke_unexpected_error", error);
-        setNotice({ kind: "error", message: "Could not revoke the token. Please try again." });
+        setNotice({
+          kind: "error",
+          message: "Could not revoke the token. Please try again.",
+        });
       }
     });
   }
@@ -155,7 +173,9 @@ export function PluginTokenControls({
           <dl className="grid gap-fc-18 text-fc-14">
             <div>
               <dt className="text-muted-foreground">Prefix</dt>
-              <dd className="mt-fc-12 font-mono font-medium">{metadata.prefix}…</dd>
+              <dd className="mt-fc-12 font-mono font-medium">
+                {metadata.prefix}…
+              </dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Created</dt>
@@ -171,7 +191,9 @@ export function PluginTokenControls({
             <TokenConfirmation
               action={confirmation}
               is_pending={is_pending}
-              onConfirm={confirmation === "rotate" ? handleRotate : handleRevoke}
+              onConfirm={
+                confirmation === "rotate" ? handleRotate : handleRevoke
+              }
               onCancel={() => setConfirmation(null)}
             />
           ) : (
@@ -179,6 +201,7 @@ export function PluginTokenControls({
               <Button
                 type="button"
                 variant="outline"
+                size="lg"
                 disabled={!is_email_confirmed || is_pending}
                 onClick={() => setConfirmation("rotate")}
               >
@@ -187,6 +210,7 @@ export function PluginTokenControls({
               <Button
                 type="button"
                 variant="destructive"
+                size="lg"
                 disabled={!is_email_confirmed || is_pending}
                 onClick={() => setConfirmation("revoke")}
               >
@@ -199,13 +223,15 @@ export function PluginTokenControls({
         <div>
           <p className="text-fc-18">No active token yet.</p>
           <p className="mt-fc-12 text-fc-14 text-muted-foreground">
-            Create one when you are ready to connect the plugin.
+            {are_secrets_ready
+              ? "Create one when you are ready to connect the plugin."
+              : "Save both your Figma token and Anthropic key above before creating a plugin token."}
           </p>
           <Button
             type="button"
             size="lg"
             className="mt-fc-24 w-full"
-            disabled={!is_email_confirmed || is_pending}
+            disabled={!can_create_token}
             onClick={handleMint}
           >
             {is_pending ? "Creating…" : "Create plugin token"}

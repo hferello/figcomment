@@ -1,9 +1,11 @@
 import { PluginTokenControls } from "@/components/profile/plugin-token-controls";
 import { ProfileFeaturePanel } from "@/components/shared/profile-feature-panel";
 import type { PluginTokenMetadata } from "@/lib/plugin-tokens/service";
+import type { SecretStatus } from "@/lib/user-secrets/service";
 
 type PluginTokenSectionProps = {
   initial_metadata: PluginTokenMetadata | null;
+  secret_status: SecretStatus;
   is_email_confirmed: boolean;
 };
 
@@ -12,6 +14,7 @@ type PluginTokenSectionProps = {
  */
 export function PluginTokenSection({
   initial_metadata,
+  secret_status,
   is_email_confirmed,
 }: PluginTokenSectionProps) {
   return (
@@ -22,12 +25,12 @@ export function PluginTokenSection({
       description="Paste this token into the Figcomment plugin. Only a secure hash is stored on the server."
       illustration={{
         src: "/illustrations/token.svg",
-        alt: "Placeholder illustration of an access token",
-        caption: "Illustration placeholder: plugin token",
+        alt: "Person holding a token",
       }}
     >
       <PluginTokenControls
         initial_metadata={initial_metadata}
+        secret_status={secret_status}
         is_email_confirmed={is_email_confirmed}
       />
     </ProfileFeaturePanel>

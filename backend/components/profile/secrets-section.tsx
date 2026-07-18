@@ -22,8 +22,7 @@ export function SecretsSection({
       description="Figcomment encrypts these credentials before storing them. Saved values are never sent back to your browser."
       illustration={{
         src: "/illustrations/keys.svg",
-        alt: "Placeholder illustration of a key",
-        caption: "Illustration placeholder: provider keys",
+        alt: "Person holding a key",
       }}
     >
       <SecretsForm

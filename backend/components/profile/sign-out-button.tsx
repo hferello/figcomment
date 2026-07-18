@@ -5,7 +5,11 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
-export function SignOutButton() {
+type SignOutButtonProps = {
+  email?: string | null;
+};
+
+export function SignOutButton({ email = null }: SignOutButtonProps) {
   const router = useRouter();
   const [error_message, setErrorMessage] = useState<string | null>(null);
   const [is_pending, startTransition] = useTransition();
@@ -33,12 +37,25 @@ export function SignOutButton() {
   }
 
   return (
-    <div>
-      <Button type="button" variant="outline" disabled={is_pending} onClick={handleSignOut}>
-        {is_pending ? "Signing out…" : "Sign out"}
-      </Button>
+    <div className="flex flex-col items-stretch gap-fc-12 md:items-end">
+      <div className="flex flex-wrap items-center justify-end gap-fc-18">
+        {email ? (
+          <p className="max-w-full truncate text-fc-14 text-muted-foreground">
+            {email}
+          </p>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          disabled={is_pending}
+          onClick={handleSignOut}
+        >
+          {is_pending ? "Signing out…" : "Sign out"}
+        </Button>
+      </div>
       {error_message ? (
-        <p role="alert" className="mt-fc-12 text-fc-12 text-destructive">
+        <p role="alert" className="text-fc-12 text-destructive">
           {error_message}
         </p>
       ) : null}

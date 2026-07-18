@@ -124,3 +124,84 @@
     animation: none;
   }
 }
+
+/* Dialog enter/exit — keyframes keep open/closed states from sharing Tailwind animate-* utilities. */
+@keyframes dialog-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-overlay-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-content-in {
+  from {
+    opacity: 0;
+    scale: 0.95;
+  }
+
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes dialog-content-out {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+
+  to {
+    opacity: 0;
+    scale: 0.95;
+  }
+}
+
+.dialog-overlay {
+  &[data-open] {
+    animation: dialog-overlay-in 200ms ease-out both;
+  }
+
+  &[data-closed] {
+    animation: dialog-overlay-out 200ms ease-in both;
+  }
+}
+
+.dialog-content {
+  /* Center without transform so expand scale animation cannot pull it off-screen. */
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  transform-origin: center;
+
+  &[data-open] {
+    animation: dialog-content-in 200ms ease-out both;
+  }
+
+  &[data-closed] {
+    animation: dialog-content-out 200ms ease-in both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-overlay,
+  .dialog-content {
+    &[data-open],
+    &[data-closed] {
+      animation: none;
+    }
+  }
+}

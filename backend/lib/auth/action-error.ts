@@ -9,6 +9,7 @@ export type ActionErrorCode =
   | "validation_error"
   | "active_token_exists"
   | "no_active_token"
+  | "secrets_required"
   | "secrets_save_failed"
   | "token_mint_failed"
   | "token_rotate_failed"
