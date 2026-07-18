@@ -16,7 +16,7 @@ export function PluginTokenSection({
 }: PluginTokenSectionProps) {
   return (
     <ProfileFeaturePanel
-      tone="peach"
+      tone="mint"
       eyebrow="Plugin access"
       title="One token. Easy to replace."
       description="Paste this token into the Figcomment plugin. Only a secure hash is stored on the server."

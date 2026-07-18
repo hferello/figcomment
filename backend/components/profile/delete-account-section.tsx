@@ -70,7 +70,7 @@ export function DeleteAccountSection({
 
   return (
     <section
-      className="rounded-fc-36 border border-destructive/30 bg-fc-panel-mint p-fc-24 md:p-fc-48"
+      className="rounded-fc-36 border border-destructive/30 bg-fc-panel-peach p-fc-24 md:p-fc-48"
       aria-labelledby="delete-account-heading"
     >
       <p className="text-fc-12 font-medium uppercase tracking-widest text-destructive">

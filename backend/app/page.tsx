@@ -62,7 +62,7 @@ export default function HomePage() {
             id="how-it-works"
             className="mt-fc-12 font-display text-fc-48 leading-none font-bold"
           >
-            Connect once. Analyse from Figma.
+            Connect once. Start sorting.
           </h2>
         </div>
 
