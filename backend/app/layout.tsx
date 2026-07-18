@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Inter } from "next/font/google";
+import { Geist, Newsreader } from "next/font/google";
+import "./globals.css";
 
-const inter = Inter({
+const geist = Geist({
   subsets: ["latin"],
-  weight: ["400", "500", "800"],
+  variable: "--font-geist",
+});
+
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  variable: "--font-newsreader",
+  weight: ["600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Figcomment",
+  title: {
+    default: "Figcomment",
+    template: "%s · Figcomment",
+  },
   description: "Analyse and sort feedback from Figma comments.",
 };
 
@@ -18,10 +28,8 @@ type RootLayoutProps = {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en">
-      <body className={inter.className} style={{ margin: 0 }}>
-        {children}
-      </body>
+    <html lang="en" className={`${geist.variable} ${newsreader.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }

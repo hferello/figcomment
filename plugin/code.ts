@@ -1,6 +1,8 @@
 // Purpose: Figma plugin runtime that requests classified comments and renders canvas outputs.
 // Context: UI sends run command -> plugin fetches backend rows -> plugin draws table/notes/CSV.
 // Intent: keep plugin logic explicit so demo behavior is easy to narrate and debug live.
+import dayjs from "dayjs";
+
 type CritiqueLens =
   | "Low - Visual design"
   | "Low - Interaction design"
@@ -123,12 +125,33 @@ type UiRunMessage = {
   output_format: OutputFormat;
 };
 
-const DEFAULT_BACKEND_URL = "http://localhost:3000/api/classify";
+type UiSaveTokenMessage = {
+  type: "save_token";
+  plugin_token: string;
+};
+
+type UiClearTokenMessage = {
+  type: "clear_token";
+};
+
+type UiResizeMessage = {
+  type: "resize_ui";
+  height: number;
+};
+
+type UiMessage =
+  | UiRunMessage
+  | UiSaveTokenMessage
+  | UiClearTokenMessage
+  | UiResizeMessage;
+
+const CLASSIFY_API_URL = "https://figcomment.vercel.app/api/classify";
+const PLUGIN_TOKEN_STORAGE_KEY = "plugin_token";
 const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
 const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
 
 const PLUGIN_UI_WIDTH = 360;
-const PLUGIN_UI_HEIGHT = 280;
+const PLUGIN_UI_HEIGHT = 360;
 
 figma.showUI(__html__, {
   width: PLUGIN_UI_WIDTH,
@@ -136,9 +159,26 @@ figma.showUI(__html__, {
 });
 figma.ui.resize(PLUGIN_UI_WIDTH, PLUGIN_UI_HEIGHT);
 
-// Accepts validated UI commands and triggers the full analysis/render pipeline.
+void bootstrapAuthState();
+
+// Routes UI commands to token setup or the existing analysis pipeline.
 figma.ui.onmessage = async (message: unknown) => {
-  if (!isUiRunMessage(message)) {
+  if (!isUiMessage(message)) {
+    return;
+  }
+
+  if (message.type === "save_token") {
+    await savePluginToken(message.plugin_token);
+    return;
+  }
+
+  if (message.type === "clear_token") {
+    await clearPluginToken();
+    return;
+  }
+
+  if (message.type === "resize_ui") {
+    figma.ui.resize(PLUGIN_UI_WIDTH, message.height);
     return;
   }
 
@@ -159,18 +199,21 @@ async function runAnalysis(output_format: OutputFormat): Promise<void> {
       );
     }
 
-    const configured_backend_url = await figma.clientStorage.getAsync(
-      "backend_url",
-    );
-    const backend_url =
-      typeof configured_backend_url === "string" && configured_backend_url.length > 0
-        ? configured_backend_url
-        : DEFAULT_BACKEND_URL;
+    const plugin_token = await getStoredPluginToken();
+
+    if (!plugin_token) {
+      throw new Error(
+        "Connect your plugin token first. Paste it from your web profile.",
+      );
+    }
 
     // Fetch first so we only mutate canvas if we have valid rows to render.
     current_step = "requesting_classification";
     postStatus("🤠 Herding comments...");
-    const classify_response = await fetchClassification(backend_url, file_key);
+    const classify_response = await fetchClassification(
+      file_key,
+      plugin_token,
+    );
 
     if (classify_response.rows.length === 0) {
       throw new Error("🦗 Crickets. This file has no comments to classify.");
@@ -213,28 +256,29 @@ async function runAnalysis(output_format: OutputFormat): Promise<void> {
 
 // Calls backend classifier endpoint and validates payload shape at runtime.
 async function fetchClassification(
-  backend_url: string,
   file_key: string,
+  plugin_token: string,
 ): Promise<ClassifyResponse> {
   let response: FetchResponse;
   try {
-    response = await fetch(backend_url, {
+    response = await fetch(CLASSIFY_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${plugin_token}`,
+      },
       body: JSON.stringify({ file_key }),
     });
   } catch {
     throw new Error(
-      `Could not reach backend at ${backend_url}. Start the backend with "npm run dev" in /backend, and run this plugin from Plugins → Development (required for localhost access).`,
+      "Could not reach Figcomment. Check your connection and try again.",
     );
   }
 
   if (!response.ok) {
     const body_text = await response.text();
-    const backend_message = extractBackendErrorMessage(body_text);
-    throw new Error(
-      `Backend request failed (${response.status}): ${backend_message}`,
-    );
+    const backend_message = formatBackendErrorMessage(body_text, response.status);
+    throw new Error(backend_message);
   }
 
   const payload: unknown = await response.json();
@@ -429,7 +473,7 @@ function createCommentCard(row: ClassifiedRow, card_fill: RgbColor): FrameNode {
 // Serializes classified rows and asks the plugin UI to download a CSV file.
 function exportCsv(rows: ClassifiedRow[]): void {
   const csv_content = rowsToCsv(rows);
-  const export_date = new Date().toISOString().slice(0, 10);
+  const export_date = dayjs().format("YYYY-MM-DD");
 
   figma.ui.postMessage({
     type: "download_csv",
@@ -708,8 +752,175 @@ function postComplete(message: string): void {
   figma.ui.postMessage({ type: "complete", message });
 }
 
+// Loads stored auth state on boot so the UI can show Connect or Analyse.
+async function bootstrapAuthState(): Promise<void> {
+  await figma.clientStorage.deleteAsync("backend_url");
+  const plugin_token = await getStoredPluginToken();
+  postAuthState(Boolean(plugin_token));
+}
+
+// Verifies and persists the plugin token before unlocking analysis actions.
+async function savePluginToken(plugin_token: string): Promise<void> {
+  const trimmed_token = plugin_token.trim();
+
+  if (!trimmed_token.startsWith("fc_")) {
+    figma.ui.postMessage({
+      type: "connect_error",
+      message:
+        "Token must start with fc_. Copy your plugin token from your web profile.",
+    });
+    return;
+  }
+
+  const verify_url = deriveVerifyUrl(CLASSIFY_API_URL);
+
+  let response: FetchResponse;
+  try {
+    response = await fetch(verify_url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${trimmed_token}`,
+      },
+    });
+  } catch {
+    figma.ui.postMessage({
+      type: "connect_error",
+      message: "Could not reach Figcomment. Check your connection and try again.",
+    });
+    return;
+  }
+
+  if (!response.ok) {
+    const body_text = await response.text();
+    figma.ui.postMessage({
+      type: "connect_error",
+      message: formatBackendErrorMessage(body_text, response.status),
+    });
+    return;
+  }
+
+  const payload: unknown = await response.json();
+  const prefix = extractVerifyPrefix(payload);
+
+  await figma.clientStorage.setAsync(PLUGIN_TOKEN_STORAGE_KEY, trimmed_token);
+
+  postAuthState(true);
+  figma.ui.postMessage({
+    type: "connect_success",
+    prefix,
+  });
+}
+
+// Clears stored token and returns the UI to the Connect screen.
+async function clearPluginToken(): Promise<void> {
+  await figma.clientStorage.deleteAsync(PLUGIN_TOKEN_STORAGE_KEY);
+  postAuthState(false);
+}
+
+async function getStoredPluginToken(): Promise<string | null> {
+  const stored_token = await figma.clientStorage.getAsync(
+    PLUGIN_TOKEN_STORAGE_KEY,
+  );
+
+  if (typeof stored_token !== "string" || stored_token.trim().length === 0) {
+    return null;
+  }
+
+  return stored_token.trim();
+}
+
+function deriveVerifyUrl(classify_url: string): string {
+  if (classify_url.endsWith("/api/classify")) {
+    return classify_url.replace(/\/api\/classify$/, "/api/plugin/verify");
+  }
+
+  return classify_url.replace(/\/api\/classify\/?$/, "/api/plugin/verify");
+}
+
+function postAuthState(connected: boolean): void {
+  figma.ui.postMessage({
+    type: "auth_state",
+    connected,
+  });
+}
+
+function extractVerifyPrefix(payload: unknown): string {
+  if (typeof payload !== "object" || payload === null) {
+    return "fc_";
+  }
+
+  const record = payload as Record<string, unknown>;
+  if (typeof record.prefix === "string" && record.prefix.length > 0) {
+    return record.prefix;
+  }
+
+  return "fc_";
+}
+
+function formatBackendErrorMessage(
+  raw_error_body: string,
+  status: number,
+): string {
+  const code = extractBackendErrorCode(raw_error_body);
+  const backend_message = extractBackendErrorMessage(raw_error_body);
+
+  if (status === 401 || code === "unauthorized") {
+    return "Your plugin token is missing, invalid, or revoked. Copy a new one from your web profile.";
+  }
+
+  if (status === 403 || code === "email_not_confirmed") {
+    return "Confirm your email on the web app, then try again.";
+  }
+
+  if (code === "missing_figma_token" || code === "missing_anthropic_key") {
+    return "Save your Figma token and Anthropic key on your web profile before running analysis.";
+  }
+
+  if (code === "invalid_figma_token") {
+    return "Your Figma token was rejected. Update your personal access token on your web profile.";
+  }
+
+  if (code === "invalid_anthropic_key" || code === "invalid_credentials") {
+    return "Your Anthropic API key was rejected. Update it on your web profile.";
+  }
+
+  if (code === "rate_limited") {
+    return "Too many requests. Wait a moment and try again.";
+  }
+
+  if (backend_message.length > 0) {
+    return backend_message;
+  }
+
+  return `Backend request failed (${status}).`;
+}
+
+function extractBackendErrorCode(raw_error_body: string): string | null {
+  try {
+    const parsed = JSON.parse(raw_error_body) as unknown;
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "error" in parsed &&
+      typeof (parsed as Record<string, unknown>).error === "object"
+    ) {
+      const error_field = (parsed as Record<string, unknown>).error as
+        | Record<string, unknown>
+        | null;
+      if (error_field && typeof error_field.code === "string") {
+        return error_field.code;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 // Guards plugin message handling to known command shapes.
-function isUiRunMessage(value: unknown): value is UiRunMessage {
+function isUiMessage(value: unknown): value is UiMessage {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -719,6 +930,19 @@ function isUiRunMessage(value: unknown): value is UiRunMessage {
   }
 
   const record = value as Record<string, unknown>;
+
+  if (record.type === "save_token") {
+    return typeof record.plugin_token === "string";
+  }
+
+  if (record.type === "clear_token") {
+    return true;
+  }
+
+  if (record.type === "resize_ui") {
+    return typeof record.height === "number";
+  }
+
   if (record.type !== "run_analysis") {
     return false;
   }

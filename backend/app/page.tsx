@@ -1,82 +1,226 @@
-// Landing page for Figcomment — design ported from Figma node 2:621.
-// Fonts: Inter loaded globally via layout.tsx (next/font/google).
-import type { CSSProperties } from "react";
+import Link from "next/link";
+import { Suspense } from "react";
+import { BrandMark } from "@/components/shared/brand-mark";
+import { IllustrationSlot } from "@/components/shared/illustration-slot";
+import { PageFrame } from "@/components/shared/page-frame";
+import { buttonVariants } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/server";
+import { cn } from "@/lib/utils";
 
-const s = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#ffffff",
-    padding: "48px 24px",
-  } satisfies CSSProperties,
-
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
-    width: "465px",
-  } satisfies CSSProperties,
-
-  title: {
-    margin: 0,
-    fontSize: "40px",
-    fontWeight: 800,
-    lineHeight: "normal",
-    color: "#000000",
-  } satisfies CSSProperties,
-
-  subtitle: {
-    margin: 0,
-    fontSize: "24px",
-    fontWeight: 400,
-    lineHeight: "normal",
-    color: "#000000",
-  } satisfies CSSProperties,
-
-  cardImage: {
-    display: "block",
-    width: "100%",
-    height: "auto",
-  } satisfies CSSProperties,
-
-  repoLink: {
-    display: "inline-block",
-    fontSize: "14px",
-    fontWeight: 500,
-    color: "#000000",
-    textDecoration: "none",
-    opacity: 0.4,
-  } satisfies CSSProperties,
+// Validates that this public route remains an instant static shell.
+export const unstable_instant = {
+  prefetch: "static",
 };
 
 export default function HomePage() {
   return (
-    <main style={s.page}>
-      <div style={s.container}>
-        <div>
-          <h1 style={s.title}>Figcomment</h1>
-          <p style={s.subtitle}>
-            Analyse, sort, and create actions
-            <br />
-            for feedback.
+    <PageFrame>
+      <nav
+        aria-label="Primary"
+        className="flex items-center justify-between gap-fc-18"
+      >
+        <BrandMark />
+        <Suspense fallback={<HomeNavActionsFallback />}>
+          <HomeNavActions />
+        </Suspense>
+      </nav>
+
+      <section className="grid gap-fc-24 py-fc-48 lg:grid-cols-2 lg:py-fc-72">
+        <div className="rounded-fc-36 bg-fc-panel-yellow p-fc-24 md:p-fc-48">
+          <p className="mt-fc-18 text-fc-12 font-medium uppercase tracking-widest">
+            Feedback, with a next step
           </p>
+          <h1 className="mt-fc-36 font-display text-fc-48 leading-none font-bold md:text-fc-63">
+            Sort the signal from your Figma comments.
+          </h1>
+          <p className="mt-fc-24 text-fc-18 leading-relaxed md:text-fc-21">
+            Figcomment analyses, groups, and turns scattered design feedback
+            into clear actions without copying comments into a permanent
+            database.
+          </p>
+          <Suspense fallback={<HomeHeroActionsFallback />}>
+            <HomeHeroActions />
+          </Suspense>
         </div>
 
-        <div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/Frame 5408.png"
-            alt="Figma sharing dialog showing comment pins on a design"
-            style={s.cardImage}
+        <div className="rounded-fc-36 bg-fc-panel-blue p-fc-24 md:p-fc-36">
+          <IllustrationSlot
+            src="/illustrations/overwhelmed.svg"
+            alt="Illustration of a designer overwhelmed by feedback comments"
+            caption="Too many comments to sort through"
           />
         </div>
+      </section>
 
-        <a href="https://github.com/hferello/figcomment" style={s.repoLink}>
-          View on GitHub →
+      <section aria-labelledby="how-it-works" className="pb-fc-48 lg:pb-fc-72">
+        <div className="mb-fc-24">
+          <p className="text-fc-12 font-medium uppercase tracking-widest">
+            Three calm steps
+          </p>
+          <h2
+            id="how-it-works"
+            className="mt-fc-12 font-display text-fc-48 leading-none font-bold"
+          >
+            Connect once. Analyse from Figma.
+          </h2>
+        </div>
+
+        <ol className="grid gap-fc-24 lg:grid-cols-3">
+          <li className="rounded-fc-36 bg-fc-panel-pink p-fc-24 md:p-fc-36">
+            <span className="text-fc-14 font-medium">01</span>
+            <h3 className="mt-fc-18 font-display text-fc-36 leading-none font-bold">
+              Save your keys
+            </h3>
+            <p className="mt-fc-18 text-fc-18 leading-relaxed">
+              Add your Figma PAT and Anthropic key. Both are encrypted before
+              storage.
+            </p>
+          </li>
+          <li className="rounded-fc-36 bg-fc-panel-peach p-fc-24 md:p-fc-36">
+            <span className="text-fc-14 font-medium">02</span>
+            <h3 className="mt-fc-18 font-display text-fc-36 leading-none font-bold">
+              Copy one token
+            </h3>
+            <p className="mt-fc-18 text-fc-18 leading-relaxed">
+              Generate a copy-once plugin token. The server stores only its
+              secure hash.
+            </p>
+          </li>
+          <li className="rounded-fc-36 bg-fc-panel-blue p-fc-24 md:p-fc-36">
+            <span className="text-fc-14 font-medium">03</span>
+            <h3 className="mt-fc-18 font-display text-fc-36 leading-none font-bold">
+              Sort the feedback
+            </h3>
+            <p className="mt-fc-18 text-fc-18 leading-relaxed">
+              Run Figcomment inside Figma and turn comment noise into useful
+              groups and actions.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <footer className="flex flex-col gap-fc-18 border-t border-fc-ink/24 pt-fc-24 text-fc-14 md:flex-row md:items-center md:justify-between">
+        <p>Figcomment — make feedback actionable.</p>
+        <a
+          href="https://github.com/hferello/figcomment"
+          className="underline underline-offset-4"
+        >
+          View on GitHub
         </a>
+      </footer>
+    </PageFrame>
+  );
+}
+
+/**
+ * Session-aware nav actions. Logged-in users go straight to profile setup.
+ */
+async function HomeNavActions() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    return (
+      <div className="flex items-center gap-fc-12">
+        <Link
+          href="/profile"
+          className={cn(
+            buttonVariants({ size: "lg" }),
+            "rounded-fc-36 bg-fc-ink text-white hover:bg-fc-ink/80",
+          )}
+        >
+          Account
+        </Link>
       </div>
-    </main>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-fc-12">
+      <Link
+        href="/login"
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "lg" }),
+          "rounded-fc-36",
+        )}
+      >
+        Log in
+      </Link>
+      <Link
+        href="/signup"
+        className={cn(
+          buttonVariants({ size: "lg" }),
+          "rounded-fc-36 bg-fc-ink text-white hover:bg-fc-ink/80",
+        )}
+      >
+        Get started
+      </Link>
+    </div>
+  );
+}
+
+function HomeNavActionsFallback() {
+  return (
+    <div aria-hidden="true" className="flex items-center gap-fc-12">
+      <div className="h-fc-48 w-fc-96 animate-pulse rounded-fc-36 bg-fc-ink/12" />
+      <div className="h-fc-48 w-fc-96 animate-pulse rounded-fc-36 bg-fc-ink/12" />
+    </div>
+  );
+}
+
+/**
+ * Session-aware hero CTAs mirror the nav: setup for signed-in users, auth for guests.
+ */
+async function HomeHeroActions() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    return (
+      <div className="mt-fc-36 flex flex-wrap gap-fc-12">
+        <Link
+          href="/profile"
+          className={cn(
+            buttonVariants({ size: "lg" }),
+            "bg-fc-ink text-white hover:bg-fc-ink/80",
+          )}
+        >
+          Go to setup
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-fc-36 flex flex-wrap gap-fc-12">
+      <Link
+        href="/signup"
+        className={cn(
+          buttonVariants({ size: "lg" }),
+          "bg-fc-ink text-white hover:bg-fc-ink/80",
+        )}
+      >
+        Create an account
+      </Link>
+      <Link
+        href="/login"
+        className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+      >
+        Log in
+      </Link>
+    </div>
+  );
+}
+
+function HomeHeroActionsFallback() {
+  return (
+    <div aria-hidden="true" className="mt-fc-36 flex flex-wrap gap-fc-12">
+      <div className="h-fc-48 w-fc-96 animate-pulse rounded-fc-36 bg-fc-ink/12" />
+      <div className="h-fc-48 w-fc-96 animate-pulse rounded-fc-36 bg-fc-ink/12" />
+    </div>
   );
 }

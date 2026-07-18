@@ -1,24 +1,47 @@
 import Anthropic from "@anthropic-ai/sdk";
+import dayjs from "dayjs";
 import { z } from "zod";
-import { mock_rows_for_comments } from "../../../lib/classify/mock";
-import { classifier_system_prompt } from "../../../lib/classify/prompt";
+import {
+  assertEmailConfirmedForUser,
+  EmailNotConfirmedError,
+} from "@/lib/auth/email-confirmed";
+import { mock_rows_for_comments } from "@/lib/classify/mock";
+import {
+  detokenizeClassifiedRows,
+  redactCommentsForPrompt,
+  type FlattenedComment,
+} from "@/lib/classify/pii-redact";
+import { classifier_system_prompt } from "@/lib/classify/prompt";
 import {
   classify_mode_schema,
   classify_request_schema,
   classify_response_schema,
   type ClassifiedRow,
-} from "../../../lib/classify/schema";
+  type ClassifyMode,
+} from "@/lib/classify/schema";
+import {
+  touchPluginTokenLastUsed,
+  verifyPluginTokenFromHeader,
+  type VerifiedPluginToken,
+} from "@/lib/plugin-tokens/verify";
+import { enforceClassifyRateLimit } from "@/lib/rate-limit";
+import {
+  InvalidProviderCredentialsError,
+  loadUserSecretsForClassify,
+  MissingProviderCredentialsError,
+  type UserProviderCredentials,
+} from "@/lib/user-secrets/load-for-classify";
 
 // Purpose: classify Figma file comments into the plugin's table-friendly schema.
-// Context: this route is the backend contract used by the Figma plugin demo.
-// Intent: keep the demo deterministic while still supporting live AI classification.
-export const dynamic = "force-dynamic";
+// Context: authenticated plugin requests use per-user Figma + Anthropic credentials.
+// Intent: ephemeral processing only — never persist comments or PII to Supabase.
+// Note: with cacheComponents, `dynamic`/`runtime` segment configs are disabled —
+// POST handlers are request-time by default under the Node.js runtime.
 export const maxDuration = 30;
-export const runtime = "nodejs";
 
 const base_cors_headers = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
   Vary: "Origin",
 };
 
@@ -29,13 +52,6 @@ const default_allowed_origins = [
   "https://figma.com",
   "null",
 ];
-
-type RateLimitEntry = {
-  count: number;
-  window_started_at_ms: number;
-};
-
-const rate_limit_store = new Map<string, RateLimitEntry>();
 
 type FigmaComment = {
   message: string;
@@ -49,10 +65,22 @@ type FigmaCommentsResponse = {
   comments: FigmaComment[];
 };
 
-type FlattenedComment = {
-  person: string;
-  feedback: string;
+type ClassifyAuthContext = {
+  verified: VerifiedPluginToken;
+  credentials: UserProviderCredentials;
 };
+
+class ClassifyHttpError extends Error {
+  readonly status: number;
+  readonly code: string;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.name = "ClassifyHttpError";
+    this.status = status;
+    this.code = code;
+  }
+}
 
 // Preflight support for plugin requests from Figma/browser contexts.
 export async function OPTIONS(request: Request): Promise<Response> {
@@ -63,15 +91,19 @@ export async function OPTIONS(request: Request): Promise<Response> {
   });
 }
 
-// Server action flow:
-// 1) validate origin and rate limit, 2) validate body, 3) fetch comments,
-// 4) classify them, 5) return a strict response contract.
+// Flow:
+// 1) validate origin, 2) auth (or dev mock bypass), 3) rate limit,
+// 4) validate body, 5) fetch comments, 6) classify, 7) touch last_used_at, 8) return rows.
 export async function POST(request: Request): Promise<Response> {
-  const start_time = Date.now();
+  const start_time = dayjs().valueOf();
+  const request_origin = request.headers.get("origin") ?? "";
+
+  console.log("[classifyComments] started", { request_origin });
+
   try {
-    // Step 1: reject disallowed origins before doing any external calls.
-    const request_origin = request.headers.get("origin") ?? "";
+    // Step 1: reject disallowed origins before auth or external calls.
     if (!is_origin_allowed(request_origin)) {
+      console.error("[classifyComments] forbidden_origin", { request_origin });
       return json_error({
         request_origin,
         status: 403,
@@ -81,9 +113,24 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
 
-    // Step 2: guard demo endpoint from burst traffic.
-    const rate_limit_result = enforce_rate_limit(request);
+    const mode = get_mode();
+    const demo_bypass = is_unauthenticated_demo_allowed(mode);
+    let auth_context: ClassifyAuthContext | null = null;
+
+    // Step 2: Bearer token → user_id → decrypt provider keys (skipped in local mock bypass).
+    if (!demo_bypass) {
+      auth_context = await resolve_authenticated_context(request);
+    }
+
+    // Step 3: per-token rate limit when authenticated; IP fallback for dev bypass.
+    const rate_limit_result = enforceClassifyRateLimit(
+      request,
+      auth_context?.verified.token_id,
+    );
     if (!rate_limit_result.allowed) {
+      console.error("[classifyComments] rate_limited", {
+        token_id: auth_context?.verified.token_id,
+      });
       const retry_after_seconds = Math.max(
         1,
         Math.ceil(rate_limit_result.retry_after_ms / 1000),
@@ -101,39 +148,59 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
 
-    // Step 3: parse the request and lock into our schema contract.
+    // Step 4: parse and validate request body contract.
     const request_json: unknown = await request.json();
     const request_payload = classify_request_schema.parse(request_json);
 
-    const mode = get_mode();
-    console.log("[classifyComments] started", {
+    console.log("[classifyComments] processing", {
       mode,
       file_key: request_payload.file_key,
+      user_id: auth_context?.verified.user_id,
+      token_prefix: auth_context?.verified.prefix,
+      demo_bypass,
     });
 
-    // Step 4: load source comments from Figma (or seeded comments in mock mode).
-    const comments = await fetch_figma_comments(request_payload.file_key, mode);
+    // Step 5: load comments from Figma (user PAT) or seeded mock input.
+    const comments = await fetch_figma_comments(
+      request_payload.file_key,
+      mode,
+      auth_context?.credentials ?? null,
+      demo_bypass,
+    );
+
     if (comments.length === 0) {
-      throw new Error("No comments found in this Figma file.");
+      throw new ClassifyHttpError(
+        400,
+        "no_comments",
+        "No comments found in this Figma file.",
+      );
     }
 
-    // Step 5: choose deterministic mock or live AI classification path.
+    // Step 6: classify in-memory — redact PII before Anthropic, restore in response.
     const rows =
       mode === "mock"
         ? mock_rows_for_comments(comments)
-        : await classify_with_ai(comments, mode);
+        : await classify_with_ai(comments, mode, auth_context?.credentials.anthropic_key ?? null);
 
-    // Step 6: enforce response schema before sending to plugin renderer.
     const response_payload = classify_response_schema.parse({
       rows,
       meta: {
         mode,
-        latency_ms: Date.now() - start_time,
+        latency_ms: dayjs().diff(start_time),
       },
     });
 
+    // Step 7: record token usage via service_role (privileged lifecycle column).
+    if (auth_context) {
+      await touchPluginTokenLastUsed(auth_context.verified.token_id);
+    }
+
+    // Step 8: return strict response schema to plugin renderer.
+
     console.log("[classifyComments] completed", {
       mode,
+      user_id: auth_context?.verified.user_id,
+      token_prefix: auth_context?.verified.prefix,
       comment_count: comments.length,
       row_count: response_payload.rows.length,
       latency_ms: response_payload.meta.latency_ms,
@@ -144,10 +211,64 @@ export async function POST(request: Request): Promise<Response> {
       headers: create_cors_headers(request_origin),
     });
   } catch (error: unknown) {
-    console.error("[classifyComments] error", error);
+    console.error("[classifyComments] error", {
+      name: error instanceof Error ? error.name : "unknown",
+      code: error instanceof ClassifyHttpError ? error.code : undefined,
+    });
+
+    if (error instanceof ClassifyHttpError) {
+      return json_error({
+        request_origin,
+        status: error.status,
+        code: error.code,
+        message: error.message,
+        start_time,
+      });
+    }
+
+    if (error instanceof EmailNotConfirmedError) {
+      return json_error({
+        request_origin,
+        status: 403,
+        code: error.code,
+        message: error.message,
+        start_time,
+      });
+    }
+
+    if (error instanceof MissingProviderCredentialsError) {
+      return json_error({
+        request_origin,
+        status: 400,
+        code: error.code,
+        message: error.message,
+        start_time,
+      });
+    }
+
+    if (error instanceof InvalidProviderCredentialsError) {
+      return json_error({
+        request_origin,
+        status: 400,
+        code: error.code,
+        message: error.message,
+        start_time,
+      });
+    }
+
+    if (error instanceof z.ZodError) {
+      return json_error({
+        request_origin,
+        status: 400,
+        code: "bad_request",
+        message: error.issues[0]?.message ?? "Invalid request body.",
+        start_time,
+      });
+    }
+
     const message =
       error instanceof Error ? error.message : "Unexpected classify error";
-    const request_origin = request.headers.get("origin") ?? "";
+
     return json_error({
       request_origin,
       status: 400,
@@ -158,66 +279,132 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
-// Pulls comments from Figma and normalizes them into a small classification input model.
-async function fetch_figma_comments(
-  file_key: string,
-  mode: z.infer<typeof classify_mode_schema>,
-): Promise<FlattenedComment[]> {
-  const figma_token = process.env.FIGMA_TOKEN;
-  if (!figma_token) {
-    if (mode === "mock") {
-      return create_mock_input();
-    }
+async function resolve_authenticated_context(
+  request: Request,
+): Promise<ClassifyAuthContext> {
+  console.log("[resolve_authenticated_context] started");
 
-    throw new Error("Missing FIGMA_TOKEN environment variable.");
+  const authorization = request.headers.get("authorization");
+  const verified = await verifyPluginTokenFromHeader(authorization);
+
+  if (!verified) {
+    console.error("[resolve_authenticated_context] unauthorized");
+    throw new ClassifyHttpError(
+      401,
+      "unauthorized",
+      "Missing or invalid plugin token. Add Authorization: Bearer fc_… from your profile.",
+    );
   }
 
-  // no-store ensures demo users always see latest comment state.
+  await assertEmailConfirmedForUser(verified.user_id);
+  const credentials = await loadUserSecretsForClassify(verified.user_id);
+
+  console.log("[resolve_authenticated_context] completed", {
+    user_id: verified.user_id,
+    token_prefix: verified.prefix,
+  });
+
+  return { verified, credentials };
+}
+
+/**
+ * Local dev only: DEMO_MODE=mock skips Bearer auth and uses seeded comments.
+ */
+function is_unauthenticated_demo_allowed(mode: ClassifyMode): boolean {
+  return mode === "mock" && process.env.NODE_ENV === "development";
+}
+
+async function fetch_figma_comments(
+  file_key: string,
+  mode: ClassifyMode,
+  credentials: UserProviderCredentials | null,
+  demo_bypass: boolean,
+): Promise<FlattenedComment[]> {
+  console.log("[fetch_figma_comments] started", { file_key, mode, demo_bypass });
+
+  if (mode === "mock" || demo_bypass) {
+    console.log("[fetch_figma_comments] completed", { source: "mock_input" });
+    return create_mock_input();
+  }
+
+  if (!credentials?.figma_token) {
+    console.error("[fetch_figma_comments] missing_figma_token");
+    throw new ClassifyHttpError(
+      400,
+      "missing_figma_token",
+      "Save your Figma personal access token in your profile before running analysis.",
+    );
+  }
+
   const figma_response = await fetch(
     `https://api.figma.com/v1/files/${encodeURIComponent(file_key)}/comments`,
     {
       headers: {
-        "X-FIGMA-TOKEN": figma_token,
+        "X-FIGMA-TOKEN": credentials.figma_token,
       },
+      // no-store: always classify latest comment state; never cache PII in CDN.
       cache: "no-store",
     },
   );
 
   if (!figma_response.ok) {
-    const body_text = await figma_response.text();
-    throw new Error(
-      `Failed to fetch Figma comments (${figma_response.status}): ${body_text}`,
+    const status = figma_response.status;
+
+    if (status === 401 || status === 403) {
+      console.error("[fetch_figma_comments] invalid_figma_token", { status });
+      throw new ClassifyHttpError(
+        400,
+        "invalid_figma_token",
+        "Figma rejected your token. Check your personal access token in your profile.",
+      );
+    }
+
+    throw new ClassifyHttpError(
+      400,
+      "figma_fetch_failed",
+      `Failed to fetch Figma comments (${status}).`,
     );
   }
 
   const response_json: unknown = await figma_response.json();
   const parsed_response = response_json as FigmaCommentsResponse;
   if (!Array.isArray(parsed_response.comments)) {
-    throw new Error("Figma comments API returned invalid payload.");
+    console.error("[fetch_figma_comments] invalid_payload");
+    throw new ClassifyHttpError(
+      400,
+      "figma_fetch_failed",
+      "Figma comments API returned invalid payload.",
+    );
   }
 
-  // Normalize unknown API shape into deterministic person/feedback pairs.
-  return parsed_response.comments
+  const flattened = parsed_response.comments
     .filter((comment) => typeof comment.message === "string" && comment.message.length > 0)
     .map((comment) => ({
       person: comment.user?.name || comment.user?.handle || "Unknown",
       feedback: comment.message.trim(),
     }));
+
+  console.log("[fetch_figma_comments] completed", { comment_count: flattened.length });
+  return flattened;
 }
 
-// Performs one AI classification call and validates output structure before returning it.
 async function classify_with_ai(
   comments: FlattenedComment[],
-  mode: z.infer<typeof classify_mode_schema>,
+  mode: ClassifyMode,
+  anthropic_key: string | null,
 ): Promise<ClassifiedRow[]> {
-  const anthropic_key = process.env.AI_PROVIDER_KEY || process.env.ANTHROPIC_API_KEY;
+  console.log("[classify_with_ai] started", { mode, comment_count: comments.length });
+
   if (!anthropic_key) {
-    if (mode === "fallback") {
-      return mock_rows_for_comments(comments);
-    }
-    throw new Error("Missing AI_PROVIDER_KEY or ANTHROPIC_API_KEY.");
+    console.error("[classify_with_ai] missing_anthropic_key");
+    throw new ClassifyHttpError(
+      400,
+      "missing_anthropic_key",
+      "Save your Anthropic API key in your profile before running analysis.",
+    );
   }
 
+  const { redacted, token_map } = redactCommentsForPrompt(comments);
   const anthropic = new Anthropic({ apiKey: anthropic_key });
   const model_name = process.env.AI_MODEL ?? "claude-sonnet-4-6";
 
@@ -230,7 +417,7 @@ async function classify_with_ai(
         {
           role: "user",
           content: JSON.stringify({
-            comments,
+            comments: redacted,
             instruction:
               "Classify each comment and output strictly valid JSON matching the requested schema.",
           }),
@@ -249,23 +436,61 @@ async function classify_with_ai(
       .object({ rows: z.array(classify_response_schema.shape.rows.element) })
       .parse(parsed_json);
 
-    return parsed_rows.rows;
+    const restored_rows = detokenizeClassifiedRows(parsed_rows.rows, token_map);
+
+    console.log("[classify_with_ai] completed", { row_count: restored_rows.length });
+    return restored_rows;
   } catch (error: unknown) {
-    console.error("[classifyComments] classify_with_ai_error", error);
-    if (mode === "fallback") {
+    console.error("[classify_with_ai] failed", {
+      mode,
+      error_name: error instanceof Error ? error.name : "unknown",
+      auth_error: is_anthropic_auth_error(error),
+    });
+
+    if (is_anthropic_auth_error(error)) {
+      throw new ClassifyHttpError(
+        400,
+        "invalid_anthropic_key",
+        "Anthropic rejected your API key. Check your key in your profile.",
+      );
+    }
+
+    if (mode === "fallback" && process.env.NODE_ENV === "development") {
+      console.log("[classify_with_ai] fallback_to_mock", { mode });
       return mock_rows_for_comments(comments);
     }
-    throw new Error("AI classification failed.");
+
+    throw new ClassifyHttpError(
+      502,
+      "classification_failed",
+      "AI classification failed. Check your Anthropic API key and try again.",
+    );
   }
 }
 
-// Parses and validates runtime mode to avoid silent env typos.
-function get_mode(): z.infer<typeof classify_mode_schema> {
+function is_anthropic_auth_error(error: unknown): boolean {
+  if (error instanceof Anthropic.AuthenticationError) {
+    return true;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    typeof (error as { status: unknown }).status === "number" &&
+    (error as { status: number }).status === 401
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function get_mode(): ClassifyMode {
   const env_mode = process.env.DEMO_MODE ?? "fallback";
   return classify_mode_schema.parse(env_mode);
 }
 
-// Extract JSON from plain text or fenced markdown responses.
 function extract_json_payload(ai_text: string): string {
   const trimmed = ai_text.trim();
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
@@ -286,7 +511,6 @@ function extract_json_payload(ai_text: string): string {
   throw new Error("AI returned non-JSON content.");
 }
 
-// Deterministic fallback input used when mock mode runs without Figma credentials.
 function create_mock_input(): FlattenedComment[] {
   return [
     {
@@ -340,10 +564,8 @@ function create_mock_input(): FlattenedComment[] {
   ];
 }
 
-// Check if request origin is allowed by explicit configuration/defaults.
 function is_origin_allowed(origin: string): boolean {
   if (!origin) {
-    // Non-browser/plugin runtime requests may omit Origin.
     return true;
   }
 
@@ -355,7 +577,6 @@ function is_origin_allowed(origin: string): boolean {
   return allowed_origins.includes(origin);
 }
 
-// Build CORS headers with explicit origin echoing when allowlist mode is active.
 function create_cors_headers(origin: string): Record<string, string> {
   const allowed_origins = get_allowed_origins();
   const allow_any = allowed_origins.includes("*");
@@ -371,7 +592,6 @@ function create_cors_headers(origin: string): Record<string, string> {
   };
 }
 
-// Parse allowed origins from env with safe defaults for local and Figma contexts.
 function get_allowed_origins(): string[] {
   const configured = process.env.CORS_ALLOWED_ORIGINS;
   if (!configured || configured.trim().length === 0) {
@@ -386,58 +606,6 @@ function get_allowed_origins(): string[] {
   return parsed.length > 0 ? parsed : default_allowed_origins;
 }
 
-// Lightweight in-memory limiter to keep demo endpoint responsive.
-function enforce_rate_limit(request: Request): {
-  allowed: boolean;
-  retry_after_ms: number;
-} {
-  const window_ms = Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000);
-  const max_requests = Number(process.env.RATE_LIMIT_MAX ?? 30);
-  const identifier = get_client_identifier(request);
-  const now = Date.now();
-
-  const entry = rate_limit_store.get(identifier);
-  if (!entry || now - entry.window_started_at_ms > window_ms) {
-    rate_limit_store.set(identifier, { count: 1, window_started_at_ms: now });
-    return { allowed: true, retry_after_ms: 0 };
-  }
-
-  if (entry.count >= max_requests) {
-    return {
-      allowed: false,
-      retry_after_ms: window_ms - (now - entry.window_started_at_ms),
-    };
-  }
-
-  entry.count += 1;
-  rate_limit_store.set(identifier, entry);
-  return { allowed: true, retry_after_ms: 0 };
-}
-
-// Build a stable rate-limit key from proxy headers with graceful fallback.
-function get_client_identifier(request: Request): string {
-  const forwarded_for = request.headers.get("x-forwarded-for");
-  if (forwarded_for) {
-    const first_ip = forwarded_for.split(",")[0]?.trim();
-    if (first_ip) {
-      return `ip:${first_ip}`;
-    }
-  }
-
-  const cf_ip = request.headers.get("cf-connecting-ip");
-  if (cf_ip) {
-    return `ip:${cf_ip}`;
-  }
-
-  const origin = request.headers.get("origin");
-  if (origin) {
-    return `origin:${origin}`;
-  }
-
-  return "unknown";
-}
-
-// Return a consistent error envelope for plugin-side handling and debug visibility.
 function json_error(args: {
   request_origin: string;
   status: number;
@@ -453,7 +621,7 @@ function json_error(args: {
       message: args.message,
     },
     meta: {
-      latency_ms: Date.now() - args.start_time,
+      latency_ms: dayjs().diff(args.start_time),
     },
   };
 
