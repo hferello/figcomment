@@ -31,7 +31,7 @@ export function TokenConfirmation({
     <div
       role="group"
       aria-labelledby={heading_id}
-      className="mt-fc-24 rounded-fc-24 border border-fc-ink/24 bg-fc-panel-yellow p-fc-18"
+      className="mt-fc-24 rounded-fc-24 border border-fc-ink/24 bg-fc-panel-lavender p-fc-18"
     >
       <h4 id={heading_id} className="font-display text-fc-21 font-bold">
         {action === "rotate" ? "Replace this token?" : "Revoke this token?"}

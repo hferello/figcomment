@@ -31,10 +31,10 @@ const twMerge = extendTailwindMerge({
           text: [
             "fc-ink",
             "fc-bg",
-            "fc-panel-blue",
-            "fc-panel-yellow",
-            "fc-panel-pink",
             "fc-panel-peach",
+            "fc-panel-cyan",
+            "fc-panel-mint",
+            "fc-panel-lavender",
           ],
         },
       ],

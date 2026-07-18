@@ -4,7 +4,7 @@
 
 @theme inline {
   --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Newsreader", "Newsreader Fallback", ui-serif, Georgia, serif;
+  --font-display: "Anton", "Anton Fallback", ui-sans-serif, system-ui, sans-serif;
 
   --text-fc-12: 0.666667rem;
   --text-fc-14: 0.777778rem;
@@ -35,10 +35,10 @@
 
   --color-fc-bg: #f5f4f0;
   --color-fc-ink: #0a0a0a;
-  --color-fc-panel-blue: #b4d4f2;
-  --color-fc-panel-yellow: #fde08d;
-  --color-fc-panel-pink: #fad1e6;
-  --color-fc-panel-peach: #ffb899;
+  --color-fc-panel-peach: #fcb68a;
+  --color-fc-panel-cyan: #acedee;
+  --color-fc-panel-mint: #b7eec3;
+  --color-fc-panel-lavender: #d0bcff;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -65,11 +65,11 @@
   --card-foreground: #0a0a0a;
   --primary: #0a0a0a;
   --primary-foreground: #f5f4f0;
-  --secondary: #b4d4f2;
+  --secondary: #acedee;
   --secondary-foreground: #0a0a0a;
   --muted: #e8e5de;
   --muted-foreground: rgb(10 10 10 / 0.48);
-  --accent: #fde08d;
+  --accent: #d0bcff;
   --accent-foreground: #0a0a0a;
   --destructive: #a62828;
   --border: rgb(10 10 10 / 0.24);
@@ -97,5 +97,30 @@
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
+  }
+}
+
+/* Brand logo pupils: quick blink once per 5s loop. */
+@keyframes brand-logo-blink {
+  0%,
+  96%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  98% {
+    transform: scaleY(0.06);
+  }
+}
+
+.brand-logo-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: brand-logo-blink 5s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo-eye {
+    animation: none;
   }
 }

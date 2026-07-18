@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -26,7 +27,7 @@ export default function HomePage() {
       </nav>
 
       <section className="grid gap-fc-24 py-fc-48 lg:grid-cols-2 lg:py-fc-72">
-        <div className="rounded-fc-36 bg-fc-panel-yellow p-fc-24 md:p-fc-48">
+        <div className="rounded-fc-36 bg-fc-panel-cyan p-fc-24 md:p-fc-48">
           <p className="mt-fc-18 text-fc-12 font-medium uppercase tracking-widest">
             Feedback, with a next step
           </p>
@@ -43,7 +44,7 @@ export default function HomePage() {
           </Suspense>
         </div>
 
-        <div className="rounded-fc-36 bg-fc-panel-blue p-fc-24 md:p-fc-36">
+        <div className="rounded-fc-36 bg-fc-panel-mint p-fc-24 md:p-fc-36">
           <IllustrationSlot
             src="/illustrations/overwhelmed.svg"
             alt="Illustration of a designer overwhelmed by feedback comments"
@@ -66,8 +67,8 @@ export default function HomePage() {
         </div>
 
         <ol className="grid gap-fc-24 lg:grid-cols-3">
-          <li className="rounded-fc-36 bg-fc-panel-pink p-fc-24 md:p-fc-36">
-            <span className="text-fc-14 font-medium">01</span>
+          <li className="relative gap-fc-18 rounded-fc-36 bg-fc-panel-peach p-fc-24 md:gap-fc-24 md:p-fc-36">
+            <span className="text-fc-72">01</span>
             <h3 className="mt-fc-18 font-display text-fc-36 leading-none font-bold">
               Save your keys
             </h3>
@@ -75,9 +76,18 @@ export default function HomePage() {
               Add your Figma PAT and Anthropic key. Both are encrypted before
               storage.
             </p>
+
+            <Image
+              src="/illustrations/keys.svg"
+              alt="A person holding a key"
+              width={128}
+              height={128}
+              aria-hidden
+              className="shrink-0 absolute top-4 right-4"
+            />
           </li>
-          <li className="rounded-fc-36 bg-fc-panel-peach p-fc-24 md:p-fc-36">
-            <span className="text-fc-14 font-medium">02</span>
+          <li className="relative gap-fc-18 rounded-fc-36 bg-fc-panel-lavender p-fc-24 md:gap-fc-24 md:p-fc-36">
+            <span className="text-fc-72">02</span>
             <h3 className="mt-fc-18 font-display text-fc-36 leading-none font-bold">
               Copy one token
             </h3>
@@ -85,9 +95,17 @@ export default function HomePage() {
               Generate a copy-once plugin token. The server stores only its
               secure hash.
             </p>
+            <Image
+              src="/illustrations/token.svg"
+              alt="A person holding a token"
+              width={128}
+              height={128}
+              aria-hidden
+              className="shrink-0 absolute top-4 right-4"
+            />
           </li>
-          <li className="rounded-fc-36 bg-fc-panel-blue p-fc-24 md:p-fc-36">
-            <span className="text-fc-14 font-medium">03</span>
+          <li className="relative gap-fc-18 rounded-fc-36 bg-fc-panel-cyan p-fc-24 md:gap-fc-24 md:p-fc-36">
+            <span className="text-fc-72">03</span>
             <h3 className="mt-fc-18 font-display text-fc-36 leading-none font-bold">
               Sort the feedback
             </h3>
@@ -95,6 +113,14 @@ export default function HomePage() {
               Run Figcomment inside Figma and turn comment noise into useful
               groups and actions.
             </p>
+            <Image
+              src="/illustrations/sort.svg"
+              alt="A person sorting speech bubbles"
+              width={128}
+              height={128}
+              aria-hidden
+              className="shrink-0 absolute top-4 right-4"
+            />
           </li>
         </ol>
       </section>

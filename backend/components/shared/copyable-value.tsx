@@ -40,12 +40,16 @@ export function CopyableValue({
   return (
     <div
       className={cn(
-        "rounded-fc-24 border border-fc-ink bg-fc-panel-yellow p-fc-18",
+        "rounded-fc-24 border border-fc-ink bg-fc-panel-lavender p-fc-18",
         className,
       )}
     >
-      <p className="text-fc-12 font-medium uppercase tracking-widest">{label}</p>
-      <output className="mt-fc-12 block break-all font-mono text-fc-14">{value}</output>
+      <p className="text-fc-12 font-medium uppercase tracking-widest">
+        {label}
+      </p>
+      <output className="mt-fc-12 block break-all font-mono text-fc-14">
+        {value}
+      </output>
       <Button type="button" size="sm" className="mt-fc-18" onClick={handleCopy}>
         {button_label}
       </Button>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Geist, Newsreader } from "next/font/google";
+import { Anton, Geist } from "next/font/google";
 import "./globals.css";
 
 const geist = Geist({
@@ -8,10 +8,10 @@ const geist = Geist({
   variable: "--font-geist",
 });
 
-const newsreader = Newsreader({
+const anton = Anton({
   subsets: ["latin"],
-  variable: "--font-newsreader",
-  weight: ["600", "700"],
+  variable: "--font-anton",
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -28,7 +28,7 @@ type RootLayoutProps = {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en" className={`${geist.variable} ${newsreader.variable}`}>
+    <html lang="en" className={`${geist.variable} ${anton.variable}`}>
       <body>{children}</body>
     </html>
   );

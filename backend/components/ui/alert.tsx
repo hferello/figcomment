@@ -8,9 +8,9 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-fc-panel-blue text-fc-ink",
+        default: "bg-fc-panel-cyan text-fc-ink",
         destructive:
-          "border-destructive bg-fc-panel-pink text-destructive *:data-[slot=alert-description]:text-destructive",
+          "border-destructive bg-fc-panel-mint text-destructive *:data-[slot=alert-description]:text-destructive",
       },
     },
     defaultVariants: {

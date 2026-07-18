@@ -18,19 +18,19 @@
 
 Canonical steps (px) — use for **type, spacing, radius, and related tokens** (opacity as `N / 100` when needed):
 
-| Step | px  | Typical use                          |
-| ---- | --- | ------------------------------------ |
-| 12   | 12  | Small labels, tight gaps, captions   |
-| 14   | 14  | Secondary UI text, compact controls   |
-| **18** | **18** | **Base body / default font-size** |
-| 21   | 21  | Emphasized body / large controls     |
-| 24   | 24  | Subheads, panel padding, radius      |
-| 36   | 36  | Section titles, large gaps            |
-| 48   | 48  | Display / hero steps                 |
-| 56   | 56  | Large display                        |
-| 63   | 63  | XL display                           |
-| 72   | 72  | Hero display                           |
-| 96   | 96  | Max display / section breathing room |
+| Step   | px     | Typical use                          |
+| ------ | ------ | ------------------------------------ |
+| 12     | 12     | Small labels, tight gaps, captions   |
+| 14     | 14     | Secondary UI text, compact controls  |
+| **18** | **18** | **Base body / default font-size**    |
+| 21     | 21     | Emphasized body / large controls     |
+| 24     | 24     | Subheads, panel padding, radius      |
+| 36     | 36     | Section titles, large gaps           |
+| 48     | 48     | Display / hero steps                 |
+| 56     | 56     | Large display                        |
+| 63     | 63     | XL display                           |
+| 72     | 72     | Hero display                         |
+| 96     | 96     | Max display / section breathing room |
 
 Do **not** invent off-scale sizes (e.g. `16px`, `20px`, `32px`) unless unavoidable for 1px borders/hairlines.
 
@@ -102,25 +102,25 @@ Prefer named `*-fc-*` utilities over arbitrary `text-[18px]` so the scale stays 
 
 ## Colour (CSS variables — tune to match Hilos closely at build time)
 
-| Token               | Role                   | Starting hex      |
-| ------------------- | ---------------------- | ----------------- |
-| `--fc-bg` / `--color-fc-bg` | Page background | `#F5F4F0` |
-| `--fc-ink` / `--color-fc-ink` | Primary text / strokes | `#0A0A0A` |
-| `--fc-panel-blue`   | Bento panel            | `#B4D4F2`         |
-| `--fc-panel-yellow` | Bento panel            | `#FDE08D`         |
-| `--fc-panel-pink`   | Bento panel            | `#FAD1E6`         |
-| `--fc-panel-peach`  | Bento panel            | `#FFB899`         |
-| `--fc-muted`        | Secondary labels       | ~40% ink on cream (`opacity` ~0.36–0.48 from scale) |
+| Token                         | Role                   | Starting hex                                        |
+| ----------------------------- | ---------------------- | --------------------------------------------------- |
+| `--fc-bg` / `--color-fc-bg`   | Page background        | `#F5F4F0`                                           |
+| `--fc-ink` / `--color-fc-ink` | Primary text / strokes | `#0A0A0A`                                           |
+| `--fc-panel-blue`             | Bento panel            | `#B4D4F2`                                           |
+| `--fc-panel-yellow`           | Bento panel            | `#FDE08D`                                           |
+| `--fc-panel-pink`             | Bento panel            | `#FAD1E6`                                           |
+| `--fc-panel-peach`            | Bento panel            | `#FFB899`                                           |
+| `--fc-muted`                  | Secondary labels       | ~40% ink on cream (`opacity` ~0.36–0.48 from scale) |
 
 Map into shadcn semantic vars (`--background` = cream, `--foreground` = ink) **and** keep `--color-fc-*` for Tailwind (`bg-fc-bg`, `text-fc-ink`, `bg-fc-panel-blue`, …).
 
 ## Typography
 
-| Role                  | Style                                            | Size (scale)                         | Suggested fonts |
-| --------------------- | ------------------------------------------------ | ------------------------------------ | --------------- |
-| Display / card titles | High-contrast **serif**, bold                    | 36–72 (hero up to 96)                | Instrument Serif, Newsreader via `next/font` → `--font-display` |
-| Eyebrow / UI / body   | Clean geometric **sans**                         | **18 base**; 14 secondary; 21 emphasis | Geist, Public Sans, or similar → `--font-sans` |
-| Labels                | Small sans, optional tracking                    | 12 or 14                             | Same sans |
+| Role                  | Style                         | Size (scale)                           | Suggested fonts                                                 |
+| --------------------- | ----------------------------- | -------------------------------------- | --------------------------------------------------------------- |
+| Display / card titles | High-contrast **serif**, bold | 36–72 (hero up to 96)                  | Instrument Serif, Newsreader via `next/font` → `--font-display` |
+| Eyebrow / UI / body   | Clean geometric **sans**      | **18 base**; 14 secondary; 21 emphasis | Geist, Public Sans, or similar → `--font-sans`                  |
+| Labels                | Small sans, optional tracking | 12 or 14                               | Same sans                                                       |
 
 Landing + auth: brand “Figcomment” should read as a hero-level signal on the first viewport (per product design rules).
 

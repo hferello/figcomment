@@ -16,7 +16,7 @@ export function SecretsSection({
 }: SecretsSectionProps) {
   return (
     <ProfileFeaturePanel
-      tone="blue"
+      tone="cyan"
       eyebrow="Provider credentials"
       title="Bring your own keys."
       description="Figcomment encrypts these credentials before storing them. Saved values are never sent back to your browser."

@@ -33,7 +33,7 @@ export function AuthShell({
       </nav>
 
       <div className="grid gap-fc-24 lg:grid-cols-2">
-        <section className="rounded-fc-36 bg-fc-panel-yellow p-fc-24 md:p-fc-48">
+        <section className="rounded-fc-36 bg-fc-panel-lavender p-fc-24 md:p-fc-48">
           <p className="mt-fc-18 text-fc-12 font-medium uppercase tracking-widest">
             {eyebrow}
           </p>
@@ -51,7 +51,7 @@ export function AuthShell({
           />
         </section>
 
-        <section className="rounded-fc-36 bg-fc-panel-blue p-fc-24 md:p-fc-48">
+        <section className="rounded-fc-36 bg-fc-panel-mint p-fc-24 md:p-fc-48">
           {children}
         </section>
       </div>
