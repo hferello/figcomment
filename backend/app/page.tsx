@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { HomeNavActionsMenu } from "@/components/home/home-nav-actions-menu";
+import { MenuToggleIcon } from "@/components/shared/menu-toggle-icon";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { HowItWorksSteps } from "@/components/shared/how-it-works-steps";
 import { IllustrationSlot } from "@/components/shared/illustration-slot";
 import { PageFrame } from "@/components/shared/page-frame";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -18,9 +20,9 @@ export default function HomePage() {
     <PageFrame>
       <nav
         aria-label="Primary"
-        className="flex items-center justify-between gap-fc-18"
+        className="relative z-50 flex items-center justify-between gap-fc-12 md:gap-fc-18"
       >
-        <BrandMark />
+        <BrandMark className="min-w-0" />
         <Suspense fallback={<HomeNavActionsFallback />}>
           <HomeNavActions />
         </Suspense>
@@ -127,51 +129,25 @@ async function HomeNavActions() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
-    return (
-      <div className="flex items-center gap-fc-12">
-        <Link
-          href="/profile"
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "rounded-fc-36 bg-fc-ink text-white hover:bg-fc-ink/80",
-          )}
-        >
-          Account
-        </Link>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-fc-12">
-      <Link
-        href="/login"
-        className={cn(
-          buttonVariants({ variant: "ghost", size: "lg" }),
-          "rounded-fc-36",
-        )}
-      >
-        Log in
-      </Link>
-      <Link
-        href="/signup"
-        className={cn(
-          buttonVariants({ size: "lg" }),
-          "rounded-fc-36 bg-fc-ink text-white hover:bg-fc-ink/80",
-        )}
-      >
-        Get started
-      </Link>
-    </div>
-  );
+  return <HomeNavActionsMenu isLoggedIn={Boolean(user)} />;
 }
 
 function HomeNavActionsFallback() {
   return (
     <div aria-hidden="true" className="flex items-center gap-fc-12">
-      <div className="h-fc-48 w-fc-96 animate-pulse rounded-fc-36 bg-fc-ink/12" />
-      <div className="h-fc-48 w-fc-96 animate-pulse rounded-fc-36 bg-fc-ink/12" />
+      <div className="hidden h-fc-48 w-fc-96 animate-pulse rounded-fc-36 bg-fc-ink/12 md:block" />
+      <div className="hidden h-fc-48 w-fc-96 animate-pulse rounded-fc-36 bg-fc-ink/12 md:block" />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="rounded-fc-36 border-transparent md:hidden"
+        disabled
+        aria-hidden="true"
+        tabIndex={-1}
+      >
+        <MenuToggleIcon isOpen={false} className="opacity-48" />
+      </Button>
     </div>
   );
 }
@@ -195,7 +171,7 @@ async function HomeHeroActions() {
             "bg-fc-ink text-white hover:bg-fc-ink/80",
           )}
         >
-          Go to setup
+          Go to account
         </Link>
       </div>
     );

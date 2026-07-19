@@ -29,10 +29,8 @@ export const unstable_instant = {
 export default function ProfilePage() {
   return (
     <PageFrame>
-      <header className="mb-fc-48 flex flex-col gap-fc-24 md:flex-row md:items-center md:justify-between">
-        <div>
-          <BrandMark />
-        </div>
+      <header className="relative z-50 mb-fc-48 flex items-center justify-between gap-fc-18">
+        <BrandMark />
         <Suspense fallback={<SignOutButton />}>
           <ProfileSignOut />
         </Suspense>

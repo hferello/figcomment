@@ -106,11 +106,21 @@
       }
 
       button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         border: none;
-        border-radius: 8px;
-        padding: 10px 12px;
+        border-radius: 9999px;
+        min-height: 48px;
+        padding: 0 24px;
         font-weight: 600;
         cursor: pointer;
+        transition: color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+      }
+
+      button:focus-visible {
+        outline: 2px solid #0f62fe;
+        outline-offset: 2px;
       }
 
       .actions {
@@ -120,9 +130,7 @@
       }
 
       .action-button {
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        gap: 12px;
         justify-content: flex-start;
         width: 100%;
       }
@@ -139,9 +147,13 @@
       }
 
       .primary {
-        background: #0f62fe;
+        background: #0a0a0a;
         color: white;
-        font-size: 16px;
+        font-size: 14px;
+      }
+
+      .primary:hover:not(:disabled) {
+        background: rgba(10, 10, 10, 0.8);
       }
 
       .secondary {
@@ -149,8 +161,23 @@
         color: #5f6670;
         font-size: 14px;
         font-weight: 500;
-        padding: 6px 0;
-        text-align: left;
+        min-height: 36px;
+        padding: 0 18px;
+      }
+
+      .change-token-button {
+        gap: 2px;
+        margin-left: 24px;
+        font-weight: 600;
+      }
+
+      .change-token-button img {
+        flex-shrink: 0;
+      }
+
+      .change-token-button:hover:not(:disabled) {
+        color: #111827;
+        background-color: rgba(17, 24, 39, 0.06);
       }
 
       .status {
@@ -209,6 +236,16 @@
       <section id="analyse_screen" class="screen" hidden>
         <div class="brand">
           <h1>Figcomment</h1>
+          <button id="change_token_button" class="secondary change-token-button" type="button" title="Change token">
+            <img
+              src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAABLElEQVR4AcyUgRHCMAhFo4upk6mT6WbKsyWlIVha9U4vCCHh/dBG9+XHn78UuEjTN7GHGP4oPhxrOwB+FppC8YiQl7QfawSAAPeUUsiz7tayAhQDcQCTYJ19JlVKRoDHQPGsMJiwbyaSEaCo5d0lcRqNWMI62F9FMgJ0UKvH4CoeMEYs09k46Cwj0ANofeTroTICPQiPAQhG3O6hs1cuI1DbfVUMX4C5/xjxkJ2+a9dLAhFgQvkIeLqD3uk8csoArzeIdNQBm/ivYU/WHJzCSKD34tiP0T6/AbzOu3AWW4GlkwNVOH4nEDx1EvphBdiUObmnvMlYgd511FI9uc7T3gpEN2YznFNYAeatfQQHZgV4WQDJY9wMcsSbzQoAB8jNwHjpm8FaaAU091X/BAAA//+q9fMsAAAABklEQVQDAG6lLzHx6kyCAAAAAElFTkSuQmCC"
+              width="20"
+              height="20"
+              alt=""
+              aria-hidden="true"
+            />
+            Change
+          </button>
         </div>
         <p>Analyse and sort feedback. Outputs:</p>
         <div class="actions">
@@ -280,9 +317,7 @@
             <span>CSV</span>
           </button>
         </div>
-        <button id="change_token_button" class="secondary" type="button">
-          Change token
-        </button>
+
         <div id="status_text" class="status"></div>
       </section>
     </div>
@@ -372,6 +407,9 @@
         throw new Error("Required UI elements are missing.");
       }
 
+      let connect_screen_height = 360;
+      let analyse_screen_height = 330;
+
       function showConnectScreen() {
         connect_screen.hidden = false;
         analyse_screen.hidden = true;
@@ -379,7 +417,7 @@
           {
             pluginMessage: {
               type: "resize_ui",
-              height: 360,
+              height: connect_screen_height,
             },
           },
           "*",
@@ -393,7 +431,7 @@
           {
             pluginMessage: {
               type: "resize_ui",
-              height: 320,
+              height: analyse_screen_height,
             },
           },
           "*",
@@ -476,6 +514,13 @@
         }
 
         if (plugin_message.type === "auth_state") {
+          if (typeof plugin_message.connect_height === "number") {
+            connect_screen_height = plugin_message.connect_height;
+          }
+          if (typeof plugin_message.analyse_height === "number") {
+            analyse_screen_height = plugin_message.analyse_height;
+          }
+
           if (plugin_message.connected) {
             showAnalyseScreen();
           } else {

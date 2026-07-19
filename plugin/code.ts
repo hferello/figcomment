@@ -147,17 +147,16 @@ type UiMessage =
 
 const CLASSIFY_API_URL = "https://figcomment.vercel.app/api/classify";
 const PLUGIN_TOKEN_STORAGE_KEY = "plugin_token";
-const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
-const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
+const FONT_REGULAR: FontName = { family: "Geist", style: "Regular" };
+const FONT_BOLD: FontName = { family: "Geist", style: "Bold" };
 
 const PLUGIN_UI_WIDTH = 360;
-const PLUGIN_UI_HEIGHT = 360;
+const PLUGIN_UI_CONNECT_HEIGHT = 330;
 
 figma.showUI(__html__, {
   width: PLUGIN_UI_WIDTH,
-  height: PLUGIN_UI_HEIGHT,
+  height: PLUGIN_UI_CONNECT_HEIGHT,
 });
-figma.ui.resize(PLUGIN_UI_WIDTH, PLUGIN_UI_HEIGHT);
 
 void bootstrapAuthState();
 
