@@ -2,32 +2,23 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-type PluginPackageJson = {
+type PluginVersionJson = {
   version: string;
 };
 
 const module_dir = path.dirname(fileURLToPath(import.meta.url));
+const plugin_version_json_path = path.join(module_dir, "plugin-version.json");
 
 /**
- * Resolve monorepo paths from backend to the Figma plugin source folder.
- */
-export function resolvePluginPaths() {
-  const backend_root = path.join(module_dir, "../..");
-  const plugin_root = path.join(backend_root, "..", "plugin");
-
-  return { backend_root, plugin_root };
-}
-
-/**
- * Read the plugin release version from plugin/package.json.
+ * Read the plugin release version baked in at local build time.
+ * Vercel only deploys /backend, so this must not read ../plugin at runtime.
  */
 export function readPluginVersion(): string {
-  const { plugin_root } = resolvePluginPaths();
-  const package_json = JSON.parse(
-    readFileSync(path.join(plugin_root, "package.json"), "utf8"),
-  ) as PluginPackageJson;
+  const version_json = JSON.parse(
+    readFileSync(plugin_version_json_path, "utf8"),
+  ) as PluginVersionJson;
 
-  return package_json.version;
+  return version_json.version;
 }
 
 /** Static assets folder for downloadable plugin archives. */
