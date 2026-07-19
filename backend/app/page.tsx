@@ -8,6 +8,7 @@ import { FigmaTokenGuideDialog } from "@/components/profile/figma-token-guide-di
 import { HowItWorksSteps } from "@/components/shared/how-it-works-steps";
 import { IllustrationSlot } from "@/components/shared/illustration-slot";
 import { PageFrame } from "@/components/shared/page-frame";
+import { YoutubeEmbed } from "@/components/shared/youtube-embed";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -55,6 +56,12 @@ export default function HomePage() {
           <Suspense fallback={<HomeHeroActionsFallback />}>
             <HomeHeroActions />
           </Suspense>
+
+          <YoutubeEmbed
+            videoId="QON1ogGs5eY"
+            title="Figcomment product demo"
+            className="mt-fc-36"
+          />
         </div>
 
         <div className="rounded-fc-36 bg-fc-panel-mint p-fc-24 md:p-fc-36">
@@ -64,6 +71,7 @@ export default function HomePage() {
             caption="Too many comments to sort through"
           />
         </div>
+        
       </section>
 
       <section aria-labelledby="how-it-works" className="pb-fc-48 lg:pb-fc-72">
