@@ -23,7 +23,7 @@ export const unstable_instant = {
 };
 
 const plugin_version = readPluginVersion();
-const plugin_download_href = getPluginDownloadHref(plugin_version);
+const plugin_download_href = getPluginDownloadHref();
 const plugin_download_filename = getPluginDownloadFilename(plugin_version);
 
 export default function HomePage() {
@@ -172,7 +172,7 @@ export default function HomePage() {
                     download={plugin_download_filename}
                     className="font-medium underline underline-offset-4 hover:text-fc-ink/80"
                   >
-                    Download the plugin (v{plugin_version})
+                    Download the plugin
                   </a>
                   , unzip it, then{" "}
                   <FigmaPluginGuideDialog triggerClassName="inline align-baseline font-medium underline underline-offset-4 hover:text-fc-ink/80">

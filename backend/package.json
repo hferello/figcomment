@@ -4,10 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run package-plugin && next build",
+    "build": "node --experimental-strip-types scripts/prebuild.mjs && next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
-    "package-plugin": "node --experimental-strip-types scripts/package-plugin.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",

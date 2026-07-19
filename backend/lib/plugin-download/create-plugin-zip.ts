@@ -32,12 +32,21 @@ function ensurePluginBuilt(plugin_root: string): void {
     throw new Error("Plugin source directory not found.");
   }
 
-  const plugin_node_modules = path.join(plugin_root, "node_modules");
-  if (!existsSync(plugin_node_modules)) {
-    execSync("npm ci", { cwd: plugin_root, stdio: "inherit" });
+  const esbuild_bin = path.join(
+    plugin_root,
+    "node_modules",
+    ".bin",
+    "esbuild",
+  );
+  if (!existsSync(esbuild_bin)) {
+    execSync("npm ci --include=dev", { cwd: plugin_root, stdio: "inherit" });
   }
 
-  execSync("npm run build", { cwd: plugin_root, stdio: "pipe" });
+  execSync("npm run build", {
+    cwd: plugin_root,
+    stdio: "pipe",
+    env: { ...process.env, NODE_ENV: "development" },
+  });
 }
 
 /**

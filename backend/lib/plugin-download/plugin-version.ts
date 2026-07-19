@@ -41,7 +41,7 @@ export function getPluginDownloadFilename(version = readPluginVersion()): string
 }
 
 /**
- * Absolute path where the build script writes the plugin zip.
+ * Absolute path where the local build writes the plugin zip.
  */
 export function getPluginDownloadOutputPath(
   backend_root: string,
