@@ -83,13 +83,19 @@ const DEFAULT_THEME_STYLE: ThemeStyle = {
   note_fill: FIGJAM_STICKY.yellow,
 };
 
-type FeedbackType = "Thoughts" | "Suggestion" | "Action" | "Idea";
+type FeedbackType =
+  | "Thoughts"
+  | "Suggestion"
+  | "Action"
+  | "Red flag"
+  | "Note";
 
 const FEEDBACK_TYPE_EMOJI: Record<FeedbackType, string> = {
   Thoughts: "💭",
-  Suggestion: "👍",
+  Suggestion: "💡",
   Action: "✅",
-  Idea: "💡",
+  "Red flag": "🚩",
+  Note: "📝",
 };
 
 // Matches FigJam sticky depth: soft blur, high vertical offset, square corners.

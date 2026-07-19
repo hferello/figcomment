@@ -9,7 +9,7 @@ Return JSON with this shape:
     {
       "person": string,
       "feedback": string,
-      "type": "Thoughts" | "Suggestion" | "Action" | "Idea",
+      "type": "Thoughts" | "Suggestion" | "Action" | "Red flag" | "Note",
       "critique_lens":
         "Low - Visual design" |
         "Low - Interaction design" |
@@ -28,10 +28,12 @@ Taxonomy rules:
 - High labels are conceptual/system critique: logic/rules, user problems, business opportunities.
 
 Type rules:
+- Red flag: an explicit blocker, serious risk, dependency, or issue likely to prevent progress or shipping
+- Note: information or a reminder worth retaining that does not request a change and is not a blocker
 - Thoughts: statement/observation
-- Suggestion: recommendation phrased as possibility
+- Suggestion: a proposed improvement or exploratory concept, usually phrased as a possibility
 - Action: direct requested change
-- Idea: exploratory feature concept
+- When multiple types seem applicable, prefer Red flag for blockers or serious risks, then Note for non-blocking reminders.
 
 Do not invent people or comments.
 Keep feedback close to original wording while removing extra filler.

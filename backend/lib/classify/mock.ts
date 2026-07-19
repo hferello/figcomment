@@ -36,7 +36,7 @@ const seeded_rows: ClassifiedRow[] = [
     person: "Priya",
     feedback:
       "What if clicking the assignee's avatar opened a quick preview of their other open tickets?",
-    type: "Idea",
+    type: "Suggestion",
     critique_lens: "High - User need/problem",
   },
   {
@@ -64,7 +64,7 @@ const seeded_rows: ClassifiedRow[] = [
     person: "Devon",
     feedback:
       "Would be great to react with emoji directly on the Jira comment from inside Slack.",
-    type: "Idea",
+    type: "Suggestion",
     critique_lens: "Medium - Flow and information design",
   },
   {
@@ -101,17 +101,38 @@ export function mock_rows_for_comments(
 // Infers feedback type using lightweight phrase rules for non-seeded comments.
 function guess_type(normalized_feedback: string): ClassifiedRow["type"] {
   if (
+    normalized_feedback.includes("red flag") ||
+    normalized_feedback.includes("blocker") ||
+    normalized_feedback.includes("blocked") ||
+    normalized_feedback.includes("blocking") ||
+    normalized_feedback.includes("serious risk") ||
+    normalized_feedback.includes("will break") ||
+    normalized_feedback.includes("cannot ship") ||
+    normalized_feedback.includes("can't ship")
+  ) {
+    return "Red flag";
+  }
+
+  if (
+    normalized_feedback.startsWith("note:") ||
+    normalized_feedback.includes("remember that") ||
+    normalized_feedback.includes("keep in mind") ||
+    normalized_feedback.includes("for reference") ||
+    normalized_feedback.includes("heads up") ||
+    normalized_feedback.includes("fyi")
+  ) {
+    return "Note";
+  }
+
+  if (
     normalized_feedback.startsWith("move ") ||
     normalized_feedback.startsWith("add ")
   ) {
     return "Action";
   }
 
-  if (normalized_feedback.includes("what if")) {
-    return "Idea";
-  }
-
   if (
+    normalized_feedback.includes("what if") ||
     normalized_feedback.includes("could") ||
     normalized_feedback.includes("maybe") ||
     normalized_feedback.includes("can we")

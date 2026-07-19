@@ -6,7 +6,8 @@ export const feedback_type_schema = z.enum([
   "Thoughts",
   "Suggestion",
   "Action",
-  "Idea",
+  "Red flag",
+  "Note",
 ]);
 
 export const critique_lens_schema = z.enum([
