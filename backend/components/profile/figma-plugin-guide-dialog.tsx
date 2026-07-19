@@ -21,66 +21,76 @@ type GuideStep = {
   };
 };
 
-const FIGMA_PAT_GUIDE_STEPS: GuideStep[] = [
+const FIGMA_PLUGIN_GUIDE_STEPS: GuideStep[] = [
   {
     step: "01",
-    title: "Open Account settings",
+    title: "Import from manifest",
     description:
-      "In Figma, open Help and account, then choose Account settings.",
+      "In Figma, open Plugins → Development, then choose Import plugin from manifest…",
     illustration: {
-      src: "/figma-pat-1.png",
-      alt: "Figma Help and account menu with Account settings highlighted",
+      src: "/figma-plugin-1.jpg",
+      alt: "Figma Plugins menu with Development and Import plugin from manifest highlighted",
     },
   },
   {
     step: "02",
-    title: "Open the Security tab",
+    title: "Select manifest.json",
     description:
-      "In Settings, select Security. Personal access tokens live further down this page.",
+      "Unzip the download, open the plugin folder, and select its manifest.json file.",
     illustration: {
-      src: "/figma-pat-2.png",
-      alt: "Figma Settings dialog with the Security tab selected",
+      src: "/figma-plugin-2.jpg",
+      alt: "macOS file picker with manifest.json selected in the figcomment plugin folder",
     },
   },
   {
     step: "03",
-    title: "Configure your token",
-    description: (
-      <>
-        Name it Figcomment, pick an expiry, and enable{" "}
-        <code className="font-mono text-fc-14">file_comments:read</code> so
-        Figcomment can read comments.
-      </>
-    ),
+    title: "Confirm it loaded",
+    description:
+      "Figcomment should appear under Plugins & widgets with a Development badge.",
     illustration: {
-      src: "/figma-pat-3.png",
-      alt: "Figma token form with Figcomment name and file_comments:read checked",
+      src: "/figma-plugin-3.jpg",
+      alt: "Figma Resources panel showing Figcomment listed as a development plugin",
     },
   },
   {
     step: "04",
-    title: "Copy it once",
-    description:
-      "Generate the token, copy the figd_… value immediately, then paste it here. Figma will not show it again.",
+    title: "Paste your plugin token",
+    description: (
+      <>
+        Run Figcomment, paste the{" "}
+        <code className="font-mono text-fc-14">fc_…</code> token from your
+        account, then click Continue.
+      </>
+    ),
     illustration: {
-      src: "/figma-pat-4.png",
-      alt: "Figma yellow banner showing a newly generated personal access token",
+      src: "/figma-plugin-4.jpg",
+      alt: "Figcomment plugin setup screen with a plugin token input field",
+    },
+  },
+  {
+    step: "05",
+    title: "Start sorting feedback",
+    description:
+      "Once connected, pick Table, Sticky notes, or CSV to analyse and sort comments.",
+    illustration: {
+      src: "/figma-plugin-5.jpg",
+      alt: "Figcomment plugin main screen with output format options",
     },
   },
 ];
 
-type FigmaTokenGuideDialogProps = {
+type FigmaPluginGuideDialogProps = {
   children?: ReactNode;
   triggerClassName?: string;
 };
 
 /**
- * Label-adjacent help: step-by-step Figma PAT guide in an expanding dialog.
+ * Step-by-step guide for importing the Figcomment development plugin in Figma.
  */
-export function FigmaTokenGuideDialog({
-  children = "How to get one",
+export function FigmaPluginGuideDialog({
+  children = "How to import it",
   triggerClassName,
-}: FigmaTokenGuideDialogProps) {
+}: FigmaPluginGuideDialogProps) {
   return (
     <Dialog>
       <DialogTrigger
@@ -97,18 +107,17 @@ export function FigmaTokenGuideDialog({
         {children}
       </DialogTrigger>
 
-
       <DialogContent className="max-h-[min(90vh,56rem)] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Get a Figma personal access token</DialogTitle>
+          <DialogTitle>Import the Figcomment plugin</DialogTitle>
           <DialogDescription>
-            Four steps in Figma. Copy the token once, then paste it into
-            Figcomment.
+            Five steps in Figma. Download and unzip the plugin first, then
+            import it as a development plugin.
           </DialogDescription>
         </DialogHeader>
 
         <ol className="mt-fc-12 grid gap-fc-18 md:grid-cols-2">
-          {FIGMA_PAT_GUIDE_STEPS.map((item) => (
+          {FIGMA_PLUGIN_GUIDE_STEPS.map((item) => (
             <li
               key={item.step}
               className="flex flex-col gap-fc-18 rounded-fc-36 bg-muted p-fc-18 md:p-fc-24"

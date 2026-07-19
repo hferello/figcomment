@@ -3,17 +3,28 @@ import { Suspense } from "react";
 import { HomeNavActionsMenu } from "@/components/home/home-nav-actions-menu";
 import { MenuToggleIcon } from "@/components/shared/menu-toggle-icon";
 import { BrandMark } from "@/components/shared/brand-mark";
+import { FigmaPluginGuideDialog } from "@/components/profile/figma-plugin-guide-dialog";
+import { FigmaTokenGuideDialog } from "@/components/profile/figma-token-guide-dialog";
 import { HowItWorksSteps } from "@/components/shared/how-it-works-steps";
 import { IllustrationSlot } from "@/components/shared/illustration-slot";
 import { PageFrame } from "@/components/shared/page-frame";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getPluginDownloadFilename,
+  getPluginDownloadHref,
+  readPluginVersion,
+} from "@/lib/plugin-download/plugin-version";
 import { cn } from "@/lib/utils";
 
 // Validates that this public route remains an instant static shell.
 export const unstable_instant = {
   prefetch: "static",
 };
+
+const plugin_version = readPluginVersion();
+const plugin_download_href = getPluginDownloadHref(plugin_version);
+const plugin_download_filename = getPluginDownloadFilename(plugin_version);
 
 export default function HomePage() {
   return (
@@ -102,6 +113,75 @@ export default function HomePage() {
                 src: "/illustrations/sort.svg",
                 alt: "A person sorting speech bubbles",
               },
+            },
+          ]}
+        />
+      </section>
+
+      <section aria-labelledby="how-it-works" className="pb-fc-48 lg:pb-fc-72">
+        <div className="mb-fc-24">
+          <p className="text-fc-12 font-medium uppercase tracking-widest">
+            What do to first
+          </p>
+          <h2
+            id="how-it-works"
+            className="mt-fc-12 font-display text-fc-48 leading-none font-bold"
+          >
+            How to get started
+          </h2>
+        </div>
+
+        <HowItWorksSteps
+          steps={[
+            {
+              step: "x",
+              title: "Sign up for an account",
+              description: "Create an account to save your keys and tokens.",
+              tone: "gray",
+            },
+            {
+              step: "xx",
+              title: "Add your keys",
+              description: (
+                <>
+                  Add your{" "}
+                  <FigmaTokenGuideDialog triggerClassName="inline align-baseline font-medium underline underline-offset-4 hover:text-fc-ink/80">
+                    Figma PAT
+                  </FigmaTokenGuideDialog>{" "}
+                  and{" "}
+                  <a
+                    href="https://www.merge.dev/blog/anthropic-api-key"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium underline underline-offset-4 hover:text-fc-ink/80"
+                  >
+                    Anthropic key
+                  </a>
+                  . Both are encrypted before storage.
+                </>
+              ),
+              tone: "gray",
+            },
+            {
+              step: "xxx",
+              title: "Download the plugin",
+              description: (
+                <>
+                  <a
+                    href={plugin_download_href}
+                    download={plugin_download_filename}
+                    className="font-medium underline underline-offset-4 hover:text-fc-ink/80"
+                  >
+                    Download the plugin (v{plugin_version})
+                  </a>
+                  , unzip it, then{" "}
+                  <FigmaPluginGuideDialog triggerClassName="inline align-baseline font-medium underline underline-offset-4 hover:text-fc-ink/80">
+                    import it in Figma
+                  </FigmaPluginGuideDialog>
+                  .
+                </>
+              ),
+              tone: "gray",
             },
           ]}
         />

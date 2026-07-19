@@ -39,6 +39,7 @@
   --color-fc-panel-cyan: #acedee;
   --color-fc-panel-mint: #b7eec3;
   --color-fc-panel-lavender: #d0bcff;
+  --color-fc-panel-gray: #e8e5de;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

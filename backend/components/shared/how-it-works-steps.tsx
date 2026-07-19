@@ -1,14 +1,15 @@
 import Image from "next/image";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type PanelTone = "cyan" | "lavender" | "peach" | "mint";
+type PanelTone = "cyan" | "lavender" | "peach" | "mint" | "gray";
 
 export type HowItWorksStep = {
   step: string;
   title: string;
-  description: string;
+  description: ReactNode;
   tone: PanelTone;
-  illustration: {
+  illustration?: {
     src: string;
     alt: string;
   };
@@ -24,6 +25,7 @@ const tone_classes: Record<PanelTone, string> = {
   lavender: "bg-fc-panel-lavender",
   peach: "bg-fc-panel-peach",
   mint: "bg-fc-panel-mint",
+  gray: "bg-fc-panel-gray",
 };
 
 /**
@@ -47,14 +49,16 @@ export function HowItWorksSteps({ steps, className }: HowItWorksStepsProps) {
           <p className="mt-fc-18 text-fc-18 leading-relaxed">
             {item.description}
           </p>
-          <Image
-            src={item.illustration.src}
-            alt={item.illustration.alt}
-            width={128}
-            height={128}
-            aria-hidden
-            className="absolute top-4 right-4 shrink-0"
-          />
+          {item.illustration && (
+            <Image
+              src={item.illustration.src}
+              alt={item.illustration.alt}
+              width={128}
+              height={128}
+              aria-hidden
+              className="absolute top-4 right-4 shrink-0"
+            />
+          )}
         </li>
       ))}
     </ol>
