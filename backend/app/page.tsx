@@ -19,22 +19,29 @@ import {
 } from "@/lib/plugin-download/plugin-version";
 import { cn } from "@/lib/utils";
 
+const home_title = "Figcomment";
+const home_subtitle = "Sort the signal from your Figma comments";
+
 // Home-only social preview; other routes inherit title/description without an image.
 export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Figcomment",
+    title: home_title,
+    description: home_subtitle,
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Figcomment — analyse and sort feedback from Figma comments.",
+        alt: `A person looking at a laptop stressed with too many comments to sort through`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
+    title: home_title,
+    description: home_subtitle,
     images: ["/og-image.png"],
   },
 };
@@ -92,7 +99,6 @@ export default function HomePage() {
             caption="Too many comments to sort through"
           />
         </div>
-        
       </section>
 
       <section aria-labelledby="how-it-works" className="pb-fc-48 lg:pb-fc-72">
