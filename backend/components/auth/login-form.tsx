@@ -8,6 +8,8 @@ import {
   type ChangeEvent,
   type SubmitEvent,
 } from "react";
+import { loginAction } from "@/app/actions/auth";
+import { HoneypotField } from "@/components/shared/honeypot-field";
 import { PasswordField } from "@/components/shared/password-field";
 import {
   StatusAlert,
@@ -22,10 +24,11 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
 
 /**
- * Login-only auth island. Supabase owns password hashing and writes the session cookie.
+ * Login-only auth island. Submits through the loginAction server action so
+ * BotID + honeypot checks run before Supabase sees the credentials; the
+ * session cookie is written by the server response.
  */
 export function LoginForm() {
   const router = useRouter();
@@ -49,6 +52,7 @@ export function LoginForm() {
     const form_data = new FormData(event.currentTarget);
     const submitted_email = form_data.get("email");
     const submitted_password = form_data.get("password");
+    const submitted_website = form_data.get("website");
 
     if (
       typeof submitted_email !== "string" ||
@@ -67,18 +71,17 @@ export function LoginForm() {
       return;
     }
 
-    const supabase = createClient();
-
     startTransition(async () => {
       try {
-        const { error } = await supabase.auth.signInWithPassword({
+        const result = await loginAction({
           email: submitted_email.trim(),
           password: submitted_password,
+          website: typeof submitted_website === "string" ? submitted_website : "",
         });
 
-        if (error) {
-          console.error("[LoginForm] login_failed", error);
-          setNotice({ kind: "error", message: error.message });
+        if (!result.ok) {
+          console.error("[LoginForm] login_failed", result.code);
+          setNotice({ kind: "error", message: result.message });
           return;
         }
 
@@ -96,6 +99,7 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit}>
+      <HoneypotField id="login-website" />
       <FieldGroup>
         <StatusAlert
           notice={notice}

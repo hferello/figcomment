@@ -8,6 +8,8 @@ import {
   type ChangeEvent,
   type SubmitEvent,
 } from "react";
+import { signupAction } from "@/app/actions/auth";
+import { HoneypotField } from "@/components/shared/honeypot-field";
 import { PasswordField } from "@/components/shared/password-field";
 import { PasswordStrengthMeter } from "@/components/shared/password-strength-meter";
 import {
@@ -23,14 +25,15 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
 
 type SignupFormProps = {
   onEmailConfirmationRequired: (email: string) => void;
 };
 
 /**
- * Signup form island. On success without a session, hands off to the success panel.
+ * Signup form island. Submits through the signupAction server action so
+ * BotID + honeypot checks run before Supabase sees the credentials. On
+ * success without a session, hands off to the success panel.
  */
 export function SignupForm({ onEmailConfirmationRequired }: SignupFormProps) {
   const router = useRouter();
@@ -59,6 +62,7 @@ export function SignupForm({ onEmailConfirmationRequired }: SignupFormProps) {
     const form_data = new FormData(event.currentTarget);
     const submitted_email = form_data.get("email");
     const submitted_password = form_data.get("password");
+    const submitted_website = form_data.get("website");
 
     if (
       typeof submitted_email !== "string" ||
@@ -77,27 +81,23 @@ export function SignupForm({ onEmailConfirmationRequired }: SignupFormProps) {
       return;
     }
 
-    const supabase = createClient();
     const trimmed_email = submitted_email.trim();
 
     startTransition(async () => {
       try {
-        const app_url =
-          process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-        const callback_url = `${app_url}/auth/callback?next=/profile`;
-        const { data, error } = await supabase.auth.signUp({
+        const result = await signupAction({
           email: trimmed_email,
           password: submitted_password,
-          options: { emailRedirectTo: callback_url },
+          website: typeof submitted_website === "string" ? submitted_website : "",
         });
 
-        if (error) {
-          console.error("[SignupForm] signup_failed", error);
-          setNotice({ kind: "error", message: error.message });
+        if (!result.ok) {
+          console.error("[SignupForm] signup_failed", result.code);
+          setNotice({ kind: "error", message: result.message });
           return;
         }
 
-        if (data.session) {
+        if (!result.data.requires_confirmation) {
           router.replace("/profile");
           router.refresh();
           return;
@@ -124,6 +124,7 @@ export function SignupForm({ onEmailConfirmationRequired }: SignupFormProps) {
 
   return (
     <form onSubmit={handleSubmit}>
+      <HoneypotField id="signup-website" />
       <FieldGroup>
         <StatusAlert
           notice={notice}

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState, useTransition, type SubmitEvent } from "react";
+import { forgotPasswordAction } from "@/app/actions/auth";
+import { HoneypotField } from "@/components/shared/honeypot-field";
 import {
   StatusAlert,
   type StatusNotice,
@@ -14,10 +16,10 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
 
 /**
- * Sends Supabase password recovery email; user completes reset via /auth/callback.
+ * Password recovery island. Submits through forgotPasswordAction so BotID +
+ * honeypot checks run before Supabase sends the reset email.
  */
 export function ForgotPasswordForm() {
   const [is_pending, startTransition] = useTransition();
@@ -29,6 +31,7 @@ export function ForgotPasswordForm() {
 
     const form_data = new FormData(event.currentTarget);
     const email_value = form_data.get("email");
+    const website_value = form_data.get("website");
 
     if (typeof email_value !== "string" || email_value.trim().length === 0) {
       setNotice({
@@ -38,22 +41,16 @@ export function ForgotPasswordForm() {
       return;
     }
 
-    const supabase = createClient();
-
     startTransition(async () => {
       try {
-        const app_url =
-          process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-        const redirect_to = `${app_url}/auth/callback?next=/reset-password`;
+        const result = await forgotPasswordAction({
+          email: email_value.trim(),
+          website: typeof website_value === "string" ? website_value : "",
+        });
 
-        const { error } = await supabase.auth.resetPasswordForEmail(
-          email_value.trim(),
-          { redirectTo: redirect_to },
-        );
-
-        if (error) {
-          console.error("[ForgotPasswordForm] reset_failed", error);
-          setNotice({ kind: "error", message: error.message });
+        if (!result.ok) {
+          console.error("[ForgotPasswordForm] reset_failed", result.code);
+          setNotice({ kind: "error", message: result.message });
           return;
         }
 
@@ -74,6 +71,7 @@ export function ForgotPasswordForm() {
 
   return (
     <form onSubmit={handleSubmit}>
+      <HoneypotField id="forgot-website" />
       <FieldGroup>
         <StatusAlert
           notice={notice}

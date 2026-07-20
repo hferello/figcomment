@@ -6,6 +6,8 @@
 export type ActionErrorCode =
   | "unauthenticated"
   | "email_not_confirmed"
+  | "auth_failed"
+  | "request_blocked"
   | "validation_error"
   | "active_token_exists"
   | "no_active_token"
