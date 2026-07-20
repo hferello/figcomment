@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { HomeNavActionsMenu } from "@/components/home/home-nav-actions-menu";
@@ -17,6 +18,26 @@ import {
   readPluginVersion,
 } from "@/lib/plugin-download/plugin-version";
 import { cn } from "@/lib/utils";
+
+// Home-only social preview; other routes inherit title/description without an image.
+export const metadata: Metadata = {
+  openGraph: {
+    type: "website",
+    siteName: "Figcomment",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Figcomment — analyse and sort feedback from Figma comments.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og-image.png"],
+  },
+};
 
 // Validates that this public route remains an instant static shell.
 export const unstable_instant = {

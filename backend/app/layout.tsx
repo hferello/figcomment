@@ -14,7 +14,11 @@ const anton = Anton({
   weight: "400",
 });
 
+// metadataBase resolves relative OG image URLs on pages that set them.
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  ),
   title: {
     default: "Figcomment",
     template: "%s · Figcomment",
