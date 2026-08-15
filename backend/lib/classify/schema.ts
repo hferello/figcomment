@@ -21,6 +21,7 @@ export const critique_lens_schema = z.enum([
 
 export const classify_request_schema = z.object({
   file_key: z.string().min(1),
+  sort_method: z.enum(["heuristic", "ai"]).default("heuristic"),
 });
 
 export const classified_row_schema = z.object({
@@ -36,6 +37,8 @@ export const classify_response_schema = z.object({
   rows: z.array(classified_row_schema),
   meta: z.object({
     mode: classify_mode_schema,
+    sort_method: z.enum(["heuristic", "ai"]),
+    provider: z.enum(["openai", "gemini", "anthropic"]).nullable(),
     latency_ms: z.number().nonnegative(),
   }),
 });

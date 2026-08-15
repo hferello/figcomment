@@ -1,16 +1,19 @@
 {
-  "name": "figma-comment-intelligence-plugin",
-  "version": "0.1.0",
+  "name": "comment-sort-plugin",
+  "version": "0.2.0",
   "private": true,
-  "description": "Demo Figma plugin for AI-structured comment analysis.",
+  "description": "Figma plugin that sorts comments with keyword or optional AI classification.",
   "scripts": {
     "build": "esbuild code.ts --bundle --platform=browser --target=es2020 --format=iife --outfile=code.js",
     "dev": "npm run build -- --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test \"*.test.ts\""
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.117.0",
+    "@types/node": "^26.2.0",
     "esbuild": "^0.25.8",
+    "tsx": "^4.23.12",
     "typescript": "^5.9.2"
   },
   "dependencies": {

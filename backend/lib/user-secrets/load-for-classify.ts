@@ -5,17 +5,23 @@
 
 import { decryptSecret } from "@/lib/crypto/secrets";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { LlmProvider } from "@/lib/user-secrets/service";
+import type { ClassifyRequest } from "@/lib/classify/schema";
 
 export type UserProviderCredentials = {
   figma_token: string;
-  anthropic_key: string;
+  llm_key: string | null;
+  llm_provider: LlmProvider | null;
 };
 
 export class MissingProviderCredentialsError extends Error {
-  readonly code: "missing_figma_token" | "missing_anthropic_key" | "missing_credentials";
+  readonly code:
+    | "missing_figma_token"
+    | "missing_llm_key"
+    | "missing_credentials";
 
   constructor(
-    code: "missing_figma_token" | "missing_anthropic_key" | "missing_credentials",
+    code: "missing_figma_token" | "missing_llm_key" | "missing_credentials",
     message: string,
   ) {
     super(message);
@@ -28,18 +34,18 @@ export class InvalidProviderCredentialsError extends Error {
   readonly code = "invalid_credentials" as const;
 
   constructor() {
-    super(
-      "Could not decrypt saved credentials. Re-save your Figma and Anthropic keys in your profile.",
-    );
+    super("Could not decrypt saved credentials. Re-save your profile credentials.");
     this.name = "InvalidProviderCredentialsError";
   }
 }
 
 /**
- * Load and decrypt Figma + Anthropic keys for an authenticated classify request.
+ * Load and decrypt credentials for an authenticated classify request.
+ * Figma token is always required. LLM key is only required for AI sort mode.
  */
 export async function loadUserSecretsForClassify(
   user_id: string,
+  request_payload: ClassifyRequest,
 ): Promise<UserProviderCredentials> {
   console.log("[loadUserSecretsForClassify] started", { user_id });
 
@@ -47,7 +53,7 @@ export async function loadUserSecretsForClassify(
   const { data, error } = await admin
     .from("user_secrets")
     .select(
-      "figma_ciphertext, figma_nonce, anthropic_ciphertext, anthropic_nonce, key_version",
+      "figma_ciphertext, figma_nonce, anthropic_ciphertext, anthropic_nonce, llm_provider, key_version",
     )
     .eq("user_id", user_id)
     .maybeSingle();
@@ -59,7 +65,7 @@ export async function loadUserSecretsForClassify(
     });
     throw new MissingProviderCredentialsError(
       "missing_credentials",
-      "Save your Figma and Anthropic credentials in your profile before running analysis.",
+      "Save your Figma token in your profile before running analysis.",
     );
   }
 
@@ -67,7 +73,7 @@ export async function loadUserSecretsForClassify(
     console.error("[loadUserSecretsForClassify] no_row", { user_id });
     throw new MissingProviderCredentialsError(
       "missing_credentials",
-      "Save your Figma and Anthropic credentials in your profile before running analysis.",
+      "Save your Figma token in your profile before running analysis.",
     );
   }
 
@@ -79,14 +85,6 @@ export async function loadUserSecretsForClassify(
     );
   }
 
-  if (!data.anthropic_ciphertext || !data.anthropic_nonce) {
-    console.error("[loadUserSecretsForClassify] missing_anthropic", { user_id });
-    throw new MissingProviderCredentialsError(
-      "missing_anthropic_key",
-      "Save your Anthropic API key in your profile before running analysis.",
-    );
-  }
-
   try {
     // Sole v1 decrypt path — plaintext exists only in memory for this request.
     const figma_token = decryptSecret({
@@ -95,16 +93,38 @@ export async function loadUserSecretsForClassify(
       key_version: data.key_version,
     });
 
-    const anthropic_key = decryptSecret({
-      ciphertext_b64: data.anthropic_ciphertext,
-      nonce_b64: data.anthropic_nonce,
-      key_version: data.key_version,
-    });
+    let llm_key: string | null = null;
+    let llm_provider: LlmProvider | null =
+      data.llm_provider === "openai" ||
+      data.llm_provider === "gemini" ||
+      data.llm_provider === "anthropic"
+        ? data.llm_provider
+        : null;
+
+    if (request_payload.sort_method === "ai") {
+      if (!data.anthropic_ciphertext || !data.anthropic_nonce) {
+        console.error("[loadUserSecretsForClassify] missing_llm_key", { user_id });
+        throw new MissingProviderCredentialsError(
+          "missing_llm_key",
+          "Save a model API key in your profile before using AI sort.",
+        );
+      }
+
+      if (!llm_provider) {
+        llm_provider = "anthropic";
+      }
+
+      llm_key = decryptSecret({
+        ciphertext_b64: data.anthropic_ciphertext,
+        nonce_b64: data.anthropic_nonce,
+        key_version: data.key_version,
+      });
+    }
 
     console.log("[loadUserSecretsForClassify] completed", { user_id });
 
-    return { figma_token, anthropic_key };
-  } catch (decrypt_error) {
+    return { figma_token, llm_key, llm_provider };
+  } catch {
     console.error("[loadUserSecretsForClassify] decrypt_failed", { user_id });
     throw new InvalidProviderCredentialsError();
   }

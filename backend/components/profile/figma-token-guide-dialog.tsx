@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { app_constants } from "@/data/constants";
 import {
   Dialog,
   DialogContent,
@@ -47,14 +48,14 @@ const FIGMA_PAT_GUIDE_STEPS: GuideStep[] = [
     title: "Configure your token",
     description: (
       <>
-        Name it Figcomment, pick an expiry, and enable{" "}
+        Name it {app_constants.backend.title}, pick an expiry, and enable{" "}
         <code className="font-mono text-fc-14">file_comments:read</code> so
-        Figcomment can read comments.
+        {app_constants.backend.title} can read comments.
       </>
     ),
     illustration: {
       src: "/figma-pat-3.png",
-      alt: "Figma token form with Figcomment name and file_comments:read checked",
+      alt: `Figma token form with ${app_constants.backend.title} name and file_comments:read checked`,
     },
   },
   {
@@ -103,7 +104,7 @@ export function FigmaTokenGuideDialog({
           <DialogTitle>Get a Figma personal access token</DialogTitle>
           <DialogDescription>
             Four steps in Figma. Copy the token once, then paste it into
-            Figcomment.
+            {app_constants.backend.title}.
           </DialogDescription>
         </DialogHeader>
 

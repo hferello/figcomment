@@ -1,5 +1,6 @@
 import { PluginTokenControls } from "@/components/profile/plugin-token-controls";
 import { ProfileFeaturePanel } from "@/components/shared/profile-feature-panel";
+import { app_constants } from "@/data/constants";
 import type { PluginTokenMetadata } from "@/lib/plugin-tokens/service";
 import type { SecretStatus } from "@/lib/user-secrets/service";
 
@@ -22,7 +23,7 @@ export function PluginTokenSection({
       tone="mint"
       eyebrow="Plugin access"
       title="One token. Easy to replace."
-      description="Paste this token into the Figcomment plugin. Only a secure hash is stored on the server."
+      description={`Paste this token into the ${app_constants.backend.title} plugin. Only a secure hash is stored on the server.`}
       illustration={{
         src: "/illustrations/token.svg",
         alt: "Person holding a token",

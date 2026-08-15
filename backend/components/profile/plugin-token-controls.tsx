@@ -16,6 +16,7 @@ import {
 } from "@/components/shared/status-alert";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { app_constants } from "@/data/constants";
 import type { PluginTokenMetadata } from "@/lib/plugin-tokens/service";
 import type { SecretStatus } from "@/lib/user-secrets/service";
 
@@ -57,8 +58,7 @@ export function PluginTokenControls({
   const [is_pending, startTransition] = useTransition();
 
   // Prop (not state) so a secrets save + router.refresh() re-enables Create immediately.
-  const are_secrets_ready =
-    secret_status.figma_saved && secret_status.anthropic_saved;
+  const are_secrets_ready = secret_status.figma_saved;
   const can_create_token =
     is_email_confirmed && are_secrets_ready && !is_pending;
 
@@ -133,7 +133,7 @@ export function PluginTokenControls({
         setConfirmation(null);
         setNotice({
           kind: "success",
-          message: "Token revoked. The plugin can no longer call Figcomment.",
+          message: `Token revoked. The plugin can no longer call ${app_constants.backend.title}.`,
         });
       } catch (error) {
         console.error("[PluginTokenControls] revoke_unexpected_error", error);
@@ -225,7 +225,7 @@ export function PluginTokenControls({
           <p className="mt-fc-12 text-fc-14 text-muted-foreground">
             {are_secrets_ready
               ? "Create one when you are ready to connect the plugin."
-              : "Save both your Figma token and Anthropic key above before creating a plugin token."}
+              : "Save your Figma token above before creating a plugin token."}
           </p>
           <Button
             type="button"

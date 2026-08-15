@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { app_constants } from "@/data/constants";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ export default function ResetPasswordPage() {
     <AuthShell
       eyebrow="Almost done"
       title="Choose a new password."
-      description="Your recovery link worked. Set a new password to continue using Figcomment."
+      description={`Your recovery link worked. Set a new password to continue using ${app_constants.backend.title}.`}
     >
       <h2 className="font-display text-fc-36 font-bold">Reset password</h2>
       <p className="mt-fc-12 mb-fc-24 text-fc-18 text-muted-foreground">

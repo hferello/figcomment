@@ -1,5 +1,6 @@
 import { BrandMark } from "@/components/shared/brand-mark";
 import { PageFrame } from "@/components/shared/page-frame";
+import { app_constants } from "@/data/constants";
 
 /**
  * Route-level fallback while navigating to /profile.
@@ -17,7 +18,7 @@ export default function ProfileLoading() {
           Your setup
         </p>
         <h1 className="mt-fc-12 font-display text-fc-48 leading-none font-bold md:text-fc-63">
-          Figcomment setup.
+          {app_constants.backend.title} setup.
         </h1>
         <p className="mt-fc-24 text-fc-18 leading-relaxed md:text-fc-21">
           Save provider credentials, create one plugin token, then continue

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Anton, Geist } from "next/font/google";
+import { app_constants, getAppUrl } from "@/data/constants";
 import "./globals.css";
 
 const geist = Geist({
@@ -16,14 +17,12 @@ const anton = Anton({
 
 // metadataBase resolves relative OG image URLs on pages that set them.
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
-  ),
+  metadataBase: new URL(getAppUrl()),
   title: {
-    default: "Figcomment",
-    template: "%s · Figcomment",
+    default: app_constants.backend.title,
+    template: `%s · ${app_constants.backend.title}`,
   },
-  description: "Analyse and sort feedback from Figma comments.",
+  description: "Sort Figma comments with keywords or optional AI.",
 };
 
 type RootLayoutProps = {

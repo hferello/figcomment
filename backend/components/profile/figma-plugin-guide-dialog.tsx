@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { app_constants } from "@/data/constants";
 import {
   Dialog,
   DialogContent,
@@ -39,17 +40,17 @@ const FIGMA_PLUGIN_GUIDE_STEPS: GuideStep[] = [
       "Unzip the download, open the plugin folder, and select its manifest.json file.",
     illustration: {
       src: "/figma-plugin-2.jpg",
-      alt: "macOS file picker with manifest.json selected in the figcomment plugin folder",
+      alt: `macOS file picker with manifest.json selected in the ${app_constants.backend.safe_title} plugin folder`,
     },
   },
   {
     step: "03",
     title: "Confirm it loaded",
     description:
-      "Figcomment should appear under Plugins & widgets with a Development badge.",
+      `${app_constants.backend.title} should appear under Plugins & widgets with a Development badge.`,
     illustration: {
       src: "/figma-plugin-3.jpg",
-      alt: "Figma Resources panel showing Figcomment listed as a development plugin",
+      alt: `Figma Resources panel showing ${app_constants.backend.title} listed as a development plugin`,
     },
   },
   {
@@ -57,14 +58,14 @@ const FIGMA_PLUGIN_GUIDE_STEPS: GuideStep[] = [
     title: "Paste your plugin token",
     description: (
       <>
-        Run Figcomment, paste the{" "}
+        Run {app_constants.backend.title}, paste the{" "}
         <code className="font-mono text-fc-14">fc_…</code> token from your
         account, then click Continue.
       </>
     ),
     illustration: {
       src: "/figma-plugin-4.jpg",
-      alt: "Figcomment plugin setup screen with a plugin token input field",
+      alt: `${app_constants.backend.title} plugin setup screen with a plugin token input field`,
     },
   },
   {
@@ -74,7 +75,7 @@ const FIGMA_PLUGIN_GUIDE_STEPS: GuideStep[] = [
       "Once connected, pick Table, Sticky notes, or CSV to analyse and sort comments.",
     illustration: {
       src: "/figma-plugin-5.jpg",
-      alt: "Figcomment plugin main screen with output format options",
+      alt: `${app_constants.backend.title} plugin main screen with output format options`,
     },
   },
 ];
@@ -85,7 +86,7 @@ type FigmaPluginGuideDialogProps = {
 };
 
 /**
- * Step-by-step guide for importing the Figcomment development plugin in Figma.
+ * Step-by-step guide for importing the development plugin in Figma.
  */
 export function FigmaPluginGuideDialog({
   children = "How to import it",
@@ -109,7 +110,7 @@ export function FigmaPluginGuideDialog({
 
       <DialogContent className="max-h-[min(90vh,56rem)] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Import the Figcomment plugin</DialogTitle>
+          <DialogTitle>Import the {app_constants.backend.title} plugin</DialogTitle>
           <DialogDescription>
             Five steps in Figma. Download and unzip the plugin first, then
             import it as a development plugin.

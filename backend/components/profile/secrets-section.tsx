@@ -1,5 +1,6 @@
 import { SecretsForm } from "@/components/profile/secrets-form";
 import { ProfileFeaturePanel } from "@/components/shared/profile-feature-panel";
+import { app_constants } from "@/data/constants";
 import type { SecretStatus } from "@/lib/user-secrets/service";
 
 type SecretsSectionProps = {
@@ -19,7 +20,7 @@ export function SecretsSection({
       tone="cyan"
       eyebrow="Provider credentials"
       title="Bring your own keys."
-      description="Figcomment encrypts these credentials before storing them. Saved values are never sent back to your browser."
+      description={`${app_constants.backend.title} encrypts these credentials before storing them. Saved values are never sent back to your browser.`}
       illustration={{
         src: "/illustrations/keys.svg",
         alt: "Person holding a key",

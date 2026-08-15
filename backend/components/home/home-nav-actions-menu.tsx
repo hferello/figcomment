@@ -12,6 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { app_constants } from "@/data/constants";
 import { cn } from "@/lib/utils";
 
 type HomeNavActionsMenuProps = {
@@ -86,7 +87,7 @@ export function HomeNavActionsMenu({ isLoggedIn }: HomeNavActionsMenuProps) {
           openLabel="Open account menu"
           closeLabel="Close account menu"
           title="Account"
-          description="Manage your Figcomment setup and credentials."
+          description={`Manage your ${app_constants.backend.title} setup and credentials.`}
         >
           <nav aria-label="Account" className="flex flex-col gap-fc-12">
             <SheetClose
@@ -137,7 +138,7 @@ export function HomeNavActionsMenu({ isLoggedIn }: HomeNavActionsMenuProps) {
         openLabel="Open menu"
         closeLabel="Close menu"
         title="Menu"
-        description="Sign in or create an account to connect Figcomment."
+        description={`Sign in or create an account to connect ${app_constants.backend.title}.`}
       >
         <nav aria-label="Authentication" className="flex flex-col gap-fc-12">
           <SheetClose

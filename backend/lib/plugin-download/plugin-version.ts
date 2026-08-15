@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { app_constants } from "@/data/constants";
 
 type PluginVersionJson = {
   version: string;
@@ -28,7 +29,7 @@ export const plugin_download_public_dir = "files";
  * Build the versioned zip filename served from public/files.
  */
 export function getPluginDownloadFilename(version = readPluginVersion()): string {
-  return `figcomment-plugin-${version}.zip`;
+  return `${app_constants.backend.safe_title}-plugin-${version}.zip`;
 }
 
 /**

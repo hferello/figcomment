@@ -11,6 +11,7 @@ import { IllustrationSlot } from "@/components/shared/illustration-slot";
 import { PageFrame } from "@/components/shared/page-frame";
 import { YoutubeEmbed } from "@/components/shared/youtube-embed";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { app_constants } from "@/data/constants";
 import { createClient } from "@/lib/supabase/server";
 import {
   getPluginDownloadFilename,
@@ -19,14 +20,14 @@ import {
 } from "@/lib/plugin-download/plugin-version";
 import { cn } from "@/lib/utils";
 
-const home_title = "Figcomment";
-const home_subtitle = "Sort the signal from your Figma comments";
+const home_title = app_constants.backend.title;
+const home_subtitle = app_constants.backend.subtitle;
 
 // Home-only social preview; other routes inherit title/description without an image.
 export const metadata: Metadata = {
   openGraph: {
     type: "website",
-    siteName: "Figcomment",
+    siteName: home_title,
     title: home_title,
     description: home_subtitle,
     images: [
@@ -77,7 +78,7 @@ export default function HomePage() {
             Sort the signal from your Figma comments.
           </h1>
           <p className="mt-fc-24 text-fc-18 leading-relaxed md:text-fc-21">
-            Figcomment analyses, groups, and turns scattered design feedback
+            {app_constants.backend.title} analyses, groups, and turns scattered design feedback
             into clear actions without copying comments into a permanent
             database.
           </p>
@@ -87,7 +88,7 @@ export default function HomePage() {
 
           <YoutubeEmbed
             videoId="QON1ogGs5eY"
-            title="Figcomment product demo"
+            title={`${app_constants.backend.title} product demo`}
             className="mt-fc-36"
           />
         </div>
@@ -120,7 +121,7 @@ export default function HomePage() {
               step: "01",
               title: "Save your keys",
               description:
-                "Add your Figma PAT and Anthropic key. Both are encrypted before storage.",
+                "Add your Figma PAT. Optional: add one model key for AI sorting.",
               tone: "peach",
               illustration: {
                 src: "/illustrations/keys.svg",
@@ -142,7 +143,7 @@ export default function HomePage() {
               step: "03",
               title: "Sort the feedback",
               description:
-                "Run Figcomment inside Figma and turn comment noise into useful groups and actions.",
+                `Run ${app_constants.backend.title} inside Figma and turn comment noise into useful groups and actions.`,
               tone: "cyan",
               illustration: {
                 src: "/illustrations/sort.svg",
@@ -182,17 +183,9 @@ export default function HomePage() {
                   Add your{" "}
                   <FigmaTokenGuideDialog triggerClassName="inline align-baseline font-medium underline underline-offset-4 hover:text-fc-ink/80">
                     Figma PAT
-                  </FigmaTokenGuideDialog>{" "}
-                  and{" "}
-                  <a
-                    href="https://www.merge.dev/blog/anthropic-api-key"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium underline underline-offset-4 hover:text-fc-ink/80"
-                  >
-                    Anthropic key
-                  </a>
-                  . Both are encrypted before storage.
+                  </FigmaTokenGuideDialog>
+                  . Optional: add one provider key (OpenAI, Gemini, or
+                  Anthropic) for AI sorting. Keys are encrypted before storage.
                 </>
               ),
               tone: "gray",
@@ -223,9 +216,9 @@ export default function HomePage() {
       </section>
 
       <footer className="flex flex-col gap-fc-18 border-t border-fc-ink/24 pt-fc-24 text-fc-14 md:flex-row md:items-center md:justify-between">
-        <p>Figcomment — make feedback actionable.</p>
+        <p>{app_constants.backend.title} — make feedback actionable.</p>
         <a
-          href="https://github.com/hferello/figcomment"
+          href={app_constants.backend.github_repository_url}
           className="underline underline-offset-4"
         >
           View on GitHub

@@ -42,6 +42,7 @@ create table if not exists public.user_secrets (
   figma_nonce text,
   anthropic_ciphertext text,
   anthropic_nonce text,
+  llm_provider text,
   key_version integer not null default 1,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -52,10 +53,17 @@ create table if not exists public.user_secrets (
   constraint user_secrets_anthropic_pair_chk check (
     (anthropic_ciphertext is null and anthropic_nonce is null)
     or (anthropic_ciphertext is not null and anthropic_nonce is not null)
+  ),
+  constraint user_secrets_llm_provider_chk check (
+    llm_provider is null or llm_provider in ('openai', 'gemini', 'anthropic')
+  ),
+  constraint user_secrets_llm_pair_chk check (
+    (anthropic_ciphertext is null and anthropic_nonce is null and llm_provider is null)
+    or (anthropic_ciphertext is not null and anthropic_nonce is not null and llm_provider is not null)
   )
 );
 
-comment on table public.user_secrets is 'AES-GCM ciphertext for Figma/Anthropic tokens; no plaintext.';
+comment on table public.user_secrets is 'AES-GCM ciphertext for Figma and optional model provider key; no plaintext.';
 
 -- ---------------------------------------------------------------------------
 -- plugin_tokens (hash-only; one active row per user via partial unique index)

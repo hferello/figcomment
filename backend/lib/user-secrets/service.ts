@@ -7,15 +7,24 @@ import { ActionError } from "@/lib/auth/action-error";
 import { encryptSecret } from "@/lib/crypto/secrets";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export const llm_provider_schema_values = [
+  "openai",
+  "gemini",
+  "anthropic",
+] as const;
+export type LlmProvider = (typeof llm_provider_schema_values)[number];
+
 export type SecretStatus = {
   figma_saved: boolean;
-  anthropic_saved: boolean;
+  llm_saved: boolean;
+  llm_provider: LlmProvider | null;
 };
 
 export type SaveUserSecretsInput = {
   user_id: string;
   figma_token?: string;
-  anthropic_key?: string;
+  llm_key?: string;
+  llm_provider?: LlmProvider;
 };
 
 type ExistingSecretRow = {
@@ -23,6 +32,7 @@ type ExistingSecretRow = {
   figma_nonce: string | null;
   anthropic_ciphertext: string | null;
   anthropic_nonce: string | null;
+  llm_provider: LlmProvider | null;
   key_version: number;
 };
 
@@ -36,7 +46,7 @@ export async function getSecretStatus(user_id: string): Promise<SecretStatus> {
   // user_secrets has no authenticated SELECT grant — service_role required even for booleans.
   const { data, error } = await admin
     .from("user_secrets")
-    .select("figma_ciphertext, anthropic_ciphertext")
+    .select("figma_ciphertext, anthropic_ciphertext, llm_provider")
     .eq("user_id", user_id)
     .maybeSingle();
 
@@ -47,7 +57,11 @@ export async function getSecretStatus(user_id: string): Promise<SecretStatus> {
 
   const status: SecretStatus = {
     figma_saved: Boolean(data?.figma_ciphertext),
-    anthropic_saved: Boolean(data?.anthropic_ciphertext),
+    llm_saved: Boolean(data?.anthropic_ciphertext),
+    llm_provider:
+      data?.llm_provider && llm_provider_schema_values.includes(data.llm_provider)
+        ? (data.llm_provider as LlmProvider)
+        : null,
   };
 
   console.log("[getSecretStatus] completed", { user_id, ...status });
@@ -55,14 +69,15 @@ export async function getSecretStatus(user_id: string): Promise<SecretStatus> {
 }
 
 /**
- * Upsert encrypted Figma / Anthropic credentials. Empty strings are rejected.
+ * Upsert encrypted Figma / LLM credentials. Empty strings are rejected.
  * Omitted fields keep existing ciphertext unchanged.
  */
 export async function saveUserSecrets(input: SaveUserSecretsInput): Promise<SecretStatus> {
   console.log("[saveUserSecrets] started", {
     user_id: input.user_id,
     has_figma: input.figma_token !== undefined,
-    has_anthropic: input.anthropic_key !== undefined,
+    has_llm_key: input.llm_key !== undefined,
+    llm_provider: input.llm_provider ?? null,
   });
 
   const admin = createAdminClient();
@@ -71,7 +86,7 @@ export async function saveUserSecrets(input: SaveUserSecretsInput): Promise<Secr
   const { data: existing, error: fetch_error } = await admin
     .from("user_secrets")
     .select(
-      "figma_ciphertext, figma_nonce, anthropic_ciphertext, anthropic_nonce, key_version",
+      "figma_ciphertext, figma_nonce, anthropic_ciphertext, anthropic_nonce, llm_provider, key_version",
     )
     .eq("user_id", input.user_id)
     .maybeSingle();
@@ -89,6 +104,7 @@ export async function saveUserSecrets(input: SaveUserSecretsInput): Promise<Secr
     figma_nonce: null,
     anthropic_ciphertext: null,
     anthropic_nonce: null,
+    llm_provider: null,
     key_version: 1,
   };
 
@@ -98,6 +114,7 @@ export async function saveUserSecrets(input: SaveUserSecretsInput): Promise<Secr
     figma_nonce: row.figma_nonce,
     anthropic_ciphertext: row.anthropic_ciphertext,
     anthropic_nonce: row.anthropic_nonce,
+    llm_provider: row.llm_provider,
     key_version: row.key_version,
   };
 
@@ -109,11 +126,25 @@ export async function saveUserSecrets(input: SaveUserSecretsInput): Promise<Secr
     upsert_payload.key_version = encrypted.key_version;
   }
 
-  if (input.anthropic_key !== undefined) {
-    const encrypted = encryptSecret(input.anthropic_key);
+  if (
+    input.llm_provider !== undefined &&
+    input.llm_provider !== row.llm_provider &&
+    input.llm_key === undefined
+  ) {
+    throw new ActionError(
+      "validation_error",
+      "Changing provider requires a new model API key in the same save.",
+    );
+  }
+
+  if (input.llm_key !== undefined) {
+    const encrypted = encryptSecret(input.llm_key);
     upsert_payload.anthropic_ciphertext = encrypted.ciphertext_b64;
     upsert_payload.anthropic_nonce = encrypted.nonce_b64;
     upsert_payload.key_version = encrypted.key_version;
+    upsert_payload.llm_provider = input.llm_provider ?? row.llm_provider ?? "anthropic";
+  } else if (input.llm_provider !== undefined) {
+    upsert_payload.llm_provider = input.llm_provider;
   }
 
   // Write-guard trigger allows only service_role inserts/updates on user_secrets.

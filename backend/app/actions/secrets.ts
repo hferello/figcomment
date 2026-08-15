@@ -17,28 +17,31 @@ import {
 } from "@/lib/auth/require-session";
 import {
   saveUserSecrets,
+  llm_provider_schema_values,
   type SecretStatus,
 } from "@/lib/user-secrets/service";
 
 const save_secrets_schema = z
   .object({
     figma_token: z.string().optional(),
-    anthropic_key: z.string().optional(),
+    llm_key: z.string().optional(),
+    llm_provider: z.enum(llm_provider_schema_values).optional(),
   })
   .refine(
-    (value) => value.figma_token !== undefined || value.anthropic_key !== undefined,
+    (value) => value.figma_token !== undefined || value.llm_key !== undefined,
     { message: "Provide at least one credential to save." },
   )
   .refine(
     (value) =>
       (value.figma_token === undefined || value.figma_token.trim().length > 0) &&
-      (value.anthropic_key === undefined || value.anthropic_key.trim().length > 0),
+      (value.llm_key === undefined || value.llm_key.trim().length > 0),
     { message: "Credentials cannot be empty." },
   );
 
 export async function saveUserSecretsAction(input: {
   figma_token?: string;
-  anthropic_key?: string;
+  llm_key?: string;
+  llm_provider?: "openai" | "gemini" | "anthropic";
 }): Promise<ActionResult<SecretStatus>> {
   console.log("[saveUserSecretsAction] started");
 
@@ -53,7 +56,8 @@ export async function saveUserSecretsAction(input: {
     const status = await saveUserSecrets({
       user_id: user.id,
       figma_token: parsed.figma_token?.trim(),
-      anthropic_key: parsed.anthropic_key?.trim(),
+      llm_key: parsed.llm_key?.trim(),
+      llm_provider: parsed.llm_provider,
     });
 
     console.log("[saveUserSecretsAction] completed", { user_id: user.id });

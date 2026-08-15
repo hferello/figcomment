@@ -2,6 +2,12 @@
 // Context: UI sends run command -> plugin fetches backend rows -> plugin draws table/notes/CSV.
 // Intent: keep plugin logic explicit so demo behavior is easy to narrate and debug live.
 import dayjs from "dayjs";
+import {
+  type ClassifiedRow,
+  type ClassifyResponse,
+  isClassifyResponse,
+} from "./classify-response-guard";
+import { parseFigmaFileUrl } from "./figma-file-url";
 
 type CritiqueLens =
   | "Low - Visual design"
@@ -109,26 +115,18 @@ const FIGJAM_STICKY_DROP_SHADOW: DropShadowEffect = {
   blendMode: "NORMAL",
 };
 
-type ClassifiedRow = {
-  person: string;
-  feedback: string;
-  type: FeedbackType;
-  critique_lens: CritiqueLens;
-};
-
-type ClassifyResponse = {
-  rows: ClassifiedRow[];
-  meta: {
-    mode: "live" | "mock" | "fallback";
-    latency_ms: number;
-  };
-};
-
 type OutputFormat = "table" | "sticky_notes" | "csv";
+type SortMethod = "heuristic" | "ai";
 
 type UiRunMessage = {
   type: "run_analysis";
   output_format: OutputFormat;
+};
+
+type UiSaveSettingsMessage = {
+  type: "save_settings";
+  file_url: string;
+  sort_method: SortMethod;
 };
 
 type UiSaveTokenMessage = {
@@ -145,16 +143,25 @@ type UiResizeMessage = {
   height: number;
 };
 
+type UiOpenExternalMessage = {
+  type: "open_external";
+  href: string;
+};
+
 type UiMessage =
   | UiRunMessage
+  | UiSaveSettingsMessage
   | UiSaveTokenMessage
   | UiClearTokenMessage
-  | UiResizeMessage;
+  | UiResizeMessage
+  | UiOpenExternalMessage;
 
-const CLASSIFY_API_URL = "https://figcomment.vercel.app/api/classify";
+const CLASSIFY_API_URL = "https://comment-sort.vercel.app/api/classify";
 const PLUGIN_TOKEN_STORAGE_KEY = "plugin_token";
-const FONT_REGULAR: FontName = { family: "Geist", style: "Regular" };
-const FONT_BOLD: FontName = { family: "Geist", style: "Bold" };
+const FILE_URL_STORAGE_KEY = "file_url";
+const SORT_METHOD_STORAGE_KEY = "sort_method";
+const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
+const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
 
 const PLUGIN_UI_WIDTH = 360;
 const PLUGIN_UI_CONNECT_HEIGHT = 330;
@@ -177,8 +184,18 @@ figma.ui.onmessage = async (message: unknown) => {
     return;
   }
 
+  if (message.type === "save_settings") {
+    await savePluginSettings(message.file_url, message.sort_method);
+    return;
+  }
+
   if (message.type === "clear_token") {
     await clearPluginToken();
+    return;
+  }
+
+  if (message.type === "open_external") {
+    openExternal(message.href);
     return;
   }
 
@@ -195,14 +212,15 @@ async function runAnalysis(output_format: OutputFormat): Promise<void> {
   let current_step = "initializing";
   try {
     current_step = "checking_file_context";
-    postStatus("🔍 Locating the scene of the crime...");
+    postStatus("🔍 Parsing file URL...");
 
-    const file_key = figma.fileKey;
-    if (!file_key) {
-      throw new Error(
-        "File key is unavailable. Use a private plugin with enablePrivatePluginApi enabled.",
-      );
+    const file_url = await getStoredFileUrl();
+    if (!file_url) {
+      throw new Error("Paste a Figma file URL before running analysis.");
     }
+
+    const { file_key } = parseFigmaFileUrl(file_url);
+    const sort_method = await getStoredSortMethod();
 
     const plugin_token = await getStoredPluginToken();
 
@@ -218,6 +236,7 @@ async function runAnalysis(output_format: OutputFormat): Promise<void> {
     const classify_response = await fetchClassification(
       file_key,
       plugin_token,
+      sort_method,
     );
 
     if (classify_response.rows.length === 0) {
@@ -263,6 +282,7 @@ async function runAnalysis(output_format: OutputFormat): Promise<void> {
 async function fetchClassification(
   file_key: string,
   plugin_token: string,
+  sort_method: SortMethod,
 ): Promise<ClassifyResponse> {
   let response: FetchResponse;
   try {
@@ -272,11 +292,11 @@ async function fetchClassification(
         "Content-Type": "application/json",
         Authorization: `Bearer ${plugin_token}`,
       },
-      body: JSON.stringify({ file_key }),
+      body: JSON.stringify({ file_key, sort_method }),
     });
   } catch {
     throw new Error(
-      "Could not reach Figcomment. Check your connection and try again.",
+      "Could not reach Comment Sort. Check your connection and try again.",
     );
   }
 
@@ -300,7 +320,7 @@ async function drawTable(rows: ClassifiedRow[]): Promise<FrameNode> {
   await figma.loadFontAsync(FONT_BOLD);
 
   const table_frame = createLayoutFrame();
-  table_frame.name = "Figcomment Table";
+  table_frame.name = "Comment Sort Table";
   table_frame.layoutMode = "VERTICAL";
   table_frame.primaryAxisSizingMode = "AUTO";
   table_frame.counterAxisSizingMode = "AUTO";
@@ -342,7 +362,7 @@ async function drawStickyNotes(rows: ClassifiedRow[]): Promise<FrameNode> {
   await figma.loadFontAsync(FONT_BOLD);
 
   const board_frame = createLayoutFrame();
-  board_frame.name = "Figcomment Sticky Notes";
+  board_frame.name = "Comment Sort Sticky Notes";
   const grouped_rows = groupRowsByLens(rows);
   const board_width = getStickyNotesBoardWidth(
     getMaxCommentsPerSection(grouped_rows),
@@ -415,9 +435,12 @@ async function drawStickyNotes(rows: ClassifiedRow[]): Promise<FrameNode> {
     const comments_frame = createLayoutFrame();
     comments_frame.name = "Comments";
     comments_frame.layoutMode = "HORIZONTAL";
-    comments_frame.primaryAxisSizingMode = "AUTO";
+    comments_frame.primaryAxisSizingMode = "FIXED";
     comments_frame.counterAxisSizingMode = "AUTO";
+    comments_frame.layoutWrap = "WRAP";
     comments_frame.itemSpacing = 16;
+    comments_frame.counterAxisSpacing = 16;
+    comments_frame.resize(board_width - 80, 1);
     comments_frame.fills = [];
 
     for (const row of section_rows) {
@@ -483,7 +506,7 @@ function exportCsv(rows: ClassifiedRow[]): void {
   figma.ui.postMessage({
     type: "download_csv",
     csv: csv_content,
-    filename: `figcomment-export-${export_date}.csv`,
+    filename: `comment-sort-export-${export_date}.csv`,
   });
 }
 
@@ -581,9 +604,12 @@ function appendUnmappedLensSections(
     const comments_frame = createLayoutFrame();
     comments_frame.name = "Comments";
     comments_frame.layoutMode = "HORIZONTAL";
-    comments_frame.primaryAxisSizingMode = "AUTO";
+    comments_frame.primaryAxisSizingMode = "FIXED";
     comments_frame.counterAxisSizingMode = "AUTO";
+    comments_frame.layoutWrap = "WRAP";
     comments_frame.itemSpacing = 16;
+    comments_frame.counterAxisSpacing = 16;
+    comments_frame.resize(board_frame.width - 80, 1);
     comments_frame.fills = [];
 
     for (const row of section_rows) {
@@ -761,7 +787,9 @@ function postComplete(message: string): void {
 async function bootstrapAuthState(): Promise<void> {
   await figma.clientStorage.deleteAsync("backend_url");
   const plugin_token = await getStoredPluginToken();
-  postAuthState(Boolean(plugin_token));
+  const file_url = await getStoredFileUrl();
+  const sort_method = await getStoredSortMethod();
+  postAuthState(Boolean(plugin_token), file_url, sort_method);
 }
 
 // Verifies and persists the plugin token before unlocking analysis actions.
@@ -791,7 +819,7 @@ async function savePluginToken(plugin_token: string): Promise<void> {
   } catch {
     figma.ui.postMessage({
       type: "connect_error",
-      message: "Could not reach Figcomment. Check your connection and try again.",
+      message: "Could not reach Comment Sort. Check your connection and try again.",
     });
     return;
   }
@@ -810,7 +838,9 @@ async function savePluginToken(plugin_token: string): Promise<void> {
 
   await figma.clientStorage.setAsync(PLUGIN_TOKEN_STORAGE_KEY, trimmed_token);
 
-  postAuthState(true);
+  const file_url = await getStoredFileUrl();
+  const sort_method = await getStoredSortMethod();
+  postAuthState(true, file_url, sort_method);
   figma.ui.postMessage({
     type: "connect_success",
     prefix,
@@ -820,7 +850,17 @@ async function savePluginToken(plugin_token: string): Promise<void> {
 // Clears stored token and returns the UI to the Connect screen.
 async function clearPluginToken(): Promise<void> {
   await figma.clientStorage.deleteAsync(PLUGIN_TOKEN_STORAGE_KEY);
-  postAuthState(false);
+  const file_url = await getStoredFileUrl();
+  const sort_method = await getStoredSortMethod();
+  postAuthState(false, file_url, sort_method);
+}
+
+async function savePluginSettings(
+  file_url: string,
+  sort_method: SortMethod,
+): Promise<void> {
+  await figma.clientStorage.setAsync(FILE_URL_STORAGE_KEY, file_url.trim());
+  await figma.clientStorage.setAsync(SORT_METHOD_STORAGE_KEY, sort_method);
 }
 
 async function getStoredPluginToken(): Promise<string | null> {
@@ -843,10 +883,32 @@ function deriveVerifyUrl(classify_url: string): string {
   return classify_url.replace(/\/api\/classify\/?$/, "/api/plugin/verify");
 }
 
-function postAuthState(connected: boolean): void {
+async function getStoredFileUrl(): Promise<string | null> {
+  const stored = await figma.clientStorage.getAsync(FILE_URL_STORAGE_KEY);
+  if (typeof stored !== "string" || stored.trim().length === 0) {
+    return null;
+  }
+  return stored.trim();
+}
+
+async function getStoredSortMethod(): Promise<SortMethod> {
+  const stored = await figma.clientStorage.getAsync(SORT_METHOD_STORAGE_KEY);
+  if (stored === "ai" || stored === "heuristic") {
+    return stored;
+  }
+  return "heuristic";
+}
+
+function postAuthState(
+  connected: boolean,
+  file_url: string | null,
+  sort_method: SortMethod,
+): void {
   figma.ui.postMessage({
     type: "auth_state",
     connected,
+    file_url,
+    sort_method,
   });
 }
 
@@ -878,20 +940,24 @@ function formatBackendErrorMessage(
     return "Confirm your email on the web app, then try again.";
   }
 
-  if (code === "missing_figma_token" || code === "missing_anthropic_key") {
-    return "Save your Figma token and Anthropic key on your web profile before running analysis.";
+  if (code === "missing_figma_token" || code === "missing_llm_key") {
+    return "Save your credentials on your web profile before running analysis.";
   }
 
   if (code === "invalid_figma_token") {
     return "Your Figma token was rejected. Update your personal access token on your web profile.";
   }
 
-  if (code === "invalid_anthropic_key" || code === "invalid_credentials") {
-    return "Your Anthropic API key was rejected. Update it on your web profile.";
+  if (code === "invalid_credentials") {
+    return "Your model API key was rejected. Update it on your web profile.";
   }
 
-  if (code === "rate_limited") {
+  if (code === "rate_limited" || code === "provider_rate_limited") {
     return "Too many requests. Wait a moment and try again.";
+  }
+
+  if (code === "provider_unavailable") {
+    return "AI provider is unavailable right now. Try again, or switch to keyword sort.";
   }
 
   if (backend_message.length > 0) {
@@ -940,12 +1006,23 @@ function isUiMessage(value: unknown): value is UiMessage {
     return typeof record.plugin_token === "string";
   }
 
+  if (record.type === "save_settings") {
+    return (
+      typeof record.file_url === "string" &&
+      (record.sort_method === "heuristic" || record.sort_method === "ai")
+    );
+  }
+
   if (record.type === "clear_token") {
     return true;
   }
 
   if (record.type === "resize_ui") {
     return typeof record.height === "number";
+  }
+
+  if (record.type === "open_external") {
+    return typeof record.href === "string";
   }
 
   if (record.type !== "run_analysis") {
@@ -959,22 +1036,37 @@ function isUiMessage(value: unknown): value is UiMessage {
   );
 }
 
-// Minimal response guard to avoid rendering malformed backend payloads.
-function isClassifyResponse(value: unknown): value is ClassifyResponse {
-  if (typeof value !== "object" || value === null) {
-    return false;
+function openExternal(href: string): void {
+  const parsed = safeParseHttpsUrl(href);
+  if (!parsed) {
+    return;
   }
-
-  const maybe_response = value as Record<string, unknown>;
-  if (!Array.isArray(maybe_response.rows)) {
-    return false;
+  const host_allowed =
+    parsed.hostname === "comment-sort.vercel.app" ||
+    parsed.hostname === "figcomment.vercel.app";
+  const path_allowed =
+    parsed.pathname === "/" ||
+    parsed.pathname === "/profile" ||
+    parsed.pathname === "/privacy";
+  if (!host_allowed || !path_allowed) {
+    return;
   }
+  figma.openExternal(parsed.href);
+}
 
-  if (typeof maybe_response.meta !== "object" || maybe_response.meta === null) {
-    return false;
+function safeParseHttpsUrl(
+  value: string,
+): { href: string; hostname: string; pathname: string } | null {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^https:\/\/([^/?#]+)(\/[^?#]*)?/i);
+  if (!match) {
+    return null;
   }
-
-  return true;
+  return {
+    href: trimmed,
+    hostname: (match[1] ?? "").toLowerCase(),
+    pathname: match[2] ?? "/",
+  };
 }
 
 function formatUnknownError(error: unknown): string {

@@ -3,507 +3,171 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Figcomment</title>
+    <title>Comment Sort</title>
     <style>
-      :root {
-        color-scheme: light dark;
-        font-family: Inter, system-ui, -apple-system, sans-serif;
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; color: #111827; }
+      .container { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+      h1 { margin: 0; font-size: 22px; }
+      .muted { color: #4b5563; font-size: 13px; line-height: 1.4; }
+      label { font-size: 13px; font-weight: 600; }
+      input, select {
+        width: 100%; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 8px;
+        padding: 10px 12px; font-size: 14px; margin-top: 6px;
       }
-
-      body {
-        margin: 0;
-        padding: 18px;
-      }
-
-      .container {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .screen {
-        display: flex;
-        flex-direction: column;
-        gap: 18px;
-      }
-
-      .screen[hidden] {
-        display: none;
-      }
-
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .brand-mark {
-        flex-shrink: 0;
-        display: block;
-        width: 36px;
-        height: 36px;
-      }
-
-      h1 {
-        margin: 0;
-        font-size: 24px;
-      }
-
-      p {
-        margin: 0;
-        font-size: 16px;
-        line-height: 1.4;
-        color: #5f6670;
-      }
-
-      .intro {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        margin-top: -8px;
-        margin-bottom: 8px;
-      }
-
-      .tagline {
-        font-size: 18px;
-        font-weight: 600;
-        line-height: 1.3;
-        color: #111827;
-      }
-
-      label {
-        display: block;
-        font-size: 14px;
-        font-weight: 600;
-      }
-
-      input {
-        width: 100%;
-        box-sizing: border-box;
-        border: 1px solid #c8cdd3;
-        border-radius: 8px;
-        padding: 10px 12px;
-        font-size: 14px;
-        font-family: inherit;
-      }
-
-      .field {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .field-help {
-        font-size: 13px;
-        line-height: 1.45;
-        color: #5f6670;
-      }
-
-      .connect-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        margin-top: 4px;
-      }
-
+      .field { display: flex; flex-direction: column; gap: 6px; }
       button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: none;
-        border-radius: 9999px;
-        min-height: 48px;
-        padding: 0 24px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+        border: none; border-radius: 9999px; padding: 11px 16px; min-height: 42px;
+        font-weight: 600; cursor: pointer;
       }
-
-      button:focus-visible {
-        outline: 2px solid #0f62fe;
-        outline-offset: 2px;
-      }
-
-      .actions {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .action-button {
-        gap: 12px;
-        justify-content: flex-start;
-        width: 100%;
-      }
-
-      .action-button svg {
-        width: 20px;
-        height: 20px;
-        flex-shrink: 0;
-      }
-
-      button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-
-      .primary {
-        background: #0a0a0a;
-        color: white;
-        font-size: 14px;
-      }
-
-      .primary:hover:not(:disabled) {
-        background: rgba(10, 10, 10, 0.8);
-      }
-
-      .secondary {
-        background: transparent;
-        color: #5f6670;
-        font-size: 14px;
-        font-weight: 500;
-        min-height: 36px;
-        padding: 0 18px;
-      }
-
-      .change-token-button {
-        gap: 2px;
-        margin-left: 24px;
-        font-weight: 600;
-      }
-
-      .change-token-button img {
-        flex-shrink: 0;
-      }
-
-      .change-token-button:hover:not(:disabled) {
-        color: #111827;
-        background-color: rgba(17, 24, 39, 0.06);
-      }
-
-      .status {
-        min-height: 20px;
-        font-size: 16px;
-      }
-
-      .connect-status {
-        min-height: 20px;
-        font-size: 14px;
-      }
-
-      .error {
-        color: #b00020;
-      }
-
-      .success {
-        color: #0f7b3a;
-      }
+      button:disabled { opacity: 0.6; cursor: not-allowed; }
+      .primary { background: #111827; color: #fff; }
+      .ghost { background: transparent; color: #374151; }
+      .actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+      .status { min-height: 20px; font-size: 13px; color: #4b5563; }
+      .error { color: #b91c1c; }
+      .success { color: #047857; }
+      .link { text-decoration: underline; cursor: pointer; background: none; border: none; padding: 0; color: inherit; font: inherit; }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .screen[hidden] { display: none; }
+      .disclosure { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; background: #f9fafb; }
     </style>
   </head>
   <body>
     <div class="container">
       <section id="connect_screen" class="screen">
-        <div class="brand">
-          <h1>Figcomment</h1>
-        </div>
-
-        <div class="intro">
-          <p class="tagline">Make sense of the noise.</p>
-          <p>Analyse and sort Figma comments with AI.</p>
-        </div>
-
-
-
+        <h1>Comment Sort</h1>
+        <p class="muted">Connect your plugin token from the Comment Sort profile page.</p>
         <div class="field">
           <label for="plugin_token_input">Plugin token</label>
-          <input
-            id="plugin_token_input"
-            type="password"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="fc_…"
-          />
-          <p class="field-help">
-            Paste your plugin token from your account to connect this Figma plugin. <a href="http://figcomment.vercel.app/" target="_blank">Get your token</a>
+          <input id="plugin_token_input" type="password" placeholder="fc_…" autocomplete="off" />
+          <p class="muted">
+            <button class="link" id="open_profile_link" type="button">Open profile to get token</button>
           </p>
         </div>
-
-        <div class="connect-actions">
-          <button id="connect_button" class="primary">Continue</button>
-          <div id="connect_status_text" class="connect-status"></div>
-        </div>
+        <button id="connect_button" class="primary">Continue</button>
+        <div id="connect_status_text" class="status"></div>
       </section>
 
       <section id="analyse_screen" class="screen" hidden>
-        <div class="brand">
-          <h1>Figcomment</h1>
-          <button id="change_token_button" class="secondary change-token-button" type="button" title="Change token">
-            <img
-              src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAABLElEQVR4AcyUgRHCMAhFo4upk6mT6WbKsyWlIVha9U4vCCHh/dBG9+XHn78UuEjTN7GHGP4oPhxrOwB+FppC8YiQl7QfawSAAPeUUsiz7tayAhQDcQCTYJ19JlVKRoDHQPGsMJiwbyaSEaCo5d0lcRqNWMI62F9FMgJ0UKvH4CoeMEYs09k46Cwj0ANofeTroTICPQiPAQhG3O6hs1cuI1DbfVUMX4C5/xjxkJ2+a9dLAhFgQvkIeLqD3uk8csoArzeIdNQBm/ivYU/WHJzCSKD34tiP0T6/AbzOu3AWW4GlkwNVOH4nEDx1EvphBdiUObmnvMlYgd511FI9uc7T3gpEN2YznFNYAeatfQQHZgV4WQDJY9wMcsSbzQoAB8jNwHjpm8FaaAU091X/BAAA//+q9fMsAAAABklEQVQDAG6lLzHx6kyCAAAAAElFTkSuQmCC"
-              width="20"
-              height="20"
-              alt=""
-              aria-hidden="true"
-            />
-            Change
-          </button>
+        <div class="row">
+          <h1>Comment Sort</h1>
+          <button id="change_token_button" type="button" class="ghost">Change token</button>
         </div>
-        <p>Analyse and sort feedback. Outputs:</p>
+        <div class="field">
+          <label for="file_url_input">Figma file URL</label>
+          <input id="file_url_input" type="url" placeholder="https://www.figma.com/design/..." />
+        </div>
+        <div class="field">
+          <label for="sort_method_select">Sort method</label>
+          <select id="sort_method_select">
+            <option value="heuristic">Keywords (no model key required)</option>
+            <option value="ai">AI (uses your saved provider key)</option>
+          </select>
+        </div>
+        <div class="disclosure">
+          <p class="muted" id="data_disclosure_text"></p>
+          <p class="muted">
+            <button class="link" id="open_privacy_link" type="button">Privacy policy</button>
+          </p>
+        </div>
         <div class="actions">
-          <button
-            id="table_button"
-            class="primary action-button"
-            data-output="table"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-              <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14" />
-              <path d="M3 10h18" />
-              <path d="M10 3v18" />
-            </svg>
-            <span>Table</span>
-          </button>
-          <button
-            id="sticky_notes_button"
-            class="primary action-button"
-            data-output="sticky_notes"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-              <path d="M6 4h12a2 2 0 0 1 2 2v7h-5a2 2 0 0 0 -2 2v5h-7a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
-              <path d="M20 13v.172a2 2 0 0 1 -.586 1.414l-4.828 4.828a2 2 0 0 1 -1.414 .586h-.172" />
-            </svg>
-            <span>Sticky notes</span>
-          </button>
-          <button
-            id="csv_button"
-            class="primary action-button"
-            data-output="csv"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-              <path d="M14 3v4a1 1 0 0 0 1 1h4" />
-              <path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" />
-              <path d="M7 16.5a1.5 1.5 0 0 0 -3 0v3a1.5 1.5 0 0 0 3 0" />
-              <path d="M10 20.25c0 .414 .336 .75 .75 .75h1.25a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-1a1 1 0 0 1 -1 -1v-1a1 1 0 0 1 1 -1h1.25a.75 .75 0 0 1 .75 .75" />
-              <path d="M16 15l2 6l2 -6" />
-            </svg>
-            <span>CSV</span>
-          </button>
+          <button id="table_button" class="primary" data-output="table">Render table</button>
+          <button id="sticky_notes_button" class="primary" data-output="sticky_notes">Render sticky notes</button>
+          <button id="csv_button" class="primary" data-output="csv">Export CSV</button>
         </div>
-
         <div id="status_text" class="status"></div>
       </section>
     </div>
-
-<template id="brand_logo_template">
-  <svg class="brand-mark" width="36" height="36" viewBox="0 0 700 700" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <mask id="path-1-outside-1_23_74" maskUnits="userSpaceOnUse" x="44.6094" y="54.2197" width="611" height="592" fill="black">
-      <rect fill="white" x="44.6094" y="54.2197" width="611" height="592"/>
-      <path d="M440.447 104.22C531.543 104.22 605.391 178.068 605.392 269.164V315.054C605.392 406.15 531.544 479.998 440.447 479.998H359.957L229.786 592.729C221.754 599.685 209.266 593.98 209.266 583.354V472.188C142.762 450.923 94.6094 388.613 94.6094 315.054V269.164C94.6095 178.068 168.457 104.22 259.554 104.22H440.447Z"/>
-    </mask>
-    <path d="M440.447 104.22C531.543 104.22 605.391 178.068 605.392 269.164V315.054C605.392 406.15 531.544 479.998 440.447 479.998H359.957L229.786 592.729C221.754 599.685 209.266 593.98 209.266 583.354V472.188C142.762 450.923 94.6094 388.613 94.6094 315.054V269.164C94.6095 178.068 168.457 104.22 259.554 104.22H440.447Z" fill="white"/>
-    <path d="M440.447 104.22L440.447 54.2197H440.447V104.22ZM605.392 269.164H655.392V269.164L605.392 269.164ZM605.392 315.054L655.392 315.054V315.054H605.392ZM440.447 479.998V529.998H440.447L440.447 479.998ZM359.957 479.998V429.998C347.934 429.998 336.313 434.331 327.224 442.202L359.957 479.998ZM229.786 592.729L262.518 630.527L262.519 630.526L229.786 592.729ZM209.266 583.354H159.266V583.355L209.266 583.354ZM209.266 472.188H259.266C259.266 450.441 245.208 431.188 224.494 424.564L209.266 472.188ZM94.6094 315.054H44.6094V315.054L94.6094 315.054ZM94.6094 269.164L44.6094 269.164V269.164H94.6094ZM259.554 104.22V54.2197V54.2197V104.22ZM440.447 104.22L440.447 154.22C503.929 154.22 555.391 205.682 555.392 269.164L605.392 269.164L655.392 269.164C655.391 150.454 559.158 54.2201 440.447 54.2197L440.447 104.22ZM605.392 269.164H555.392V315.054H605.392H655.392V269.164H605.392ZM605.392 315.054L555.392 315.054C555.392 378.536 503.929 429.998 440.447 429.998L440.447 479.998L440.447 529.998C559.158 529.998 655.392 433.764 655.392 315.054L605.392 315.054ZM440.447 479.998V429.998H359.957V479.998V529.998H440.447V479.998ZM359.957 479.998L327.224 442.202L197.053 554.933L229.786 592.729L262.519 630.526L392.69 517.794L359.957 479.998ZM229.786 592.729L197.054 554.932C221.404 533.846 259.265 551.142 259.266 583.354L209.266 583.354L159.266 583.355C159.266 636.817 222.104 665.524 262.518 630.527L229.786 592.729ZM209.266 583.354H259.266V472.188H209.266H159.266V583.354H209.266ZM209.266 472.188L224.494 424.564C178.1 409.729 144.609 366.237 144.609 315.054L94.6094 315.054L44.6094 315.054C44.6094 410.989 107.424 492.117 194.037 519.813L209.266 472.188ZM94.6094 315.054H144.609V269.164H94.6094H44.6094V315.054H94.6094ZM94.6094 269.164L144.609 269.164C144.609 205.682 196.072 154.22 259.554 154.22V104.22V54.2197C140.843 54.2197 44.6096 150.454 44.6094 269.164L94.6094 269.164ZM259.554 104.22V154.22H440.447V104.22V54.2197H259.554V104.22Z" fill="url(#paint0_radial_23_74)" mask="url(#path-1-outside-1_23_74)"/>
-    <circle cx="273.87" cy="281.032" r="45.9348" fill="black"/>
-    <circle cx="441.532" cy="281.032" r="45.9348" fill="black"/>
-    <defs>
-      <radialGradient id="paint0_radial_23_74" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(605.392 595.78) rotate(-180) scale(510.782 3404.16)">
-        <stop stop-color="#FFAA00"/>
-        <stop offset="0.5" stop-color="#FF00FB"/>
-        <stop offset="1" stop-color="#0033FF"/>
-      </radialGradient>
-    </defs>
-  </svg>
-</template>
-
     <script>
-      function mountBrandLogo(brand, index) {
-        const brand_logo_template = document.getElementById("brand_logo_template");
-        if (!brand_logo_template) {
-          return;
-        }
-
-        const clone = brand_logo_template.content.cloneNode(true);
-        const id_map = new Map();
-
-        clone.querySelectorAll("[id]").forEach((element) => {
-          const next_id = `${element.id}_${index}`;
-          id_map.set(element.id, next_id);
-          element.id = next_id;
-        });
-
-        clone.querySelectorAll("*").forEach((element) => {
-          for (const attr of ["mask", "fill", "stroke", "href", "xlink:href"]) {
-            const value = element.getAttribute(attr);
-            if (!value) {
-              continue;
-            }
-
-            const updated = value.replace(/url\(#([^)]+)\)/g, (_, id) => {
-              const mapped = id_map.get(id);
-              return mapped ? `url(#${mapped})` : value;
-            });
-
-            if (updated !== value) {
-              element.setAttribute(attr, updated);
-            }
-          }
-        });
-
-        brand.insertBefore(clone, brand.firstChild);
-      }
-
-      document.querySelectorAll(".brand").forEach((brand, index) => {
-        mountBrandLogo(brand, index);
-      });
-
       const connect_screen = document.getElementById("connect_screen");
       const analyse_screen = document.getElementById("analyse_screen");
       const plugin_token_input = document.getElementById("plugin_token_input");
       const connect_button = document.getElementById("connect_button");
       const connect_status_text = document.getElementById("connect_status_text");
       const change_token_button = document.getElementById("change_token_button");
-      const action_buttons = Array.from(
-        document.querySelectorAll(".action-button"),
-      );
       const status_text = document.getElementById("status_text");
+      const file_url_input = document.getElementById("file_url_input");
+      const sort_method_select = document.getElementById("sort_method_select");
+      const data_disclosure_text = document.getElementById("data_disclosure_text");
+      const open_profile_link = document.getElementById("open_profile_link");
+      const open_privacy_link = document.getElementById("open_privacy_link");
+      const action_buttons = Array.from(document.querySelectorAll("[data-output]"));
 
-      if (
-        !connect_screen ||
-        !analyse_screen ||
-        !plugin_token_input ||
-        !connect_button ||
-        !connect_status_text ||
-        !change_token_button ||
-        action_buttons.length === 0 ||
-        !status_text
-      ) {
-        throw new Error("Required UI elements are missing.");
+      let connect_screen_height = 340;
+      let analyse_screen_height = 520;
+
+      function postPluginMessage(message) {
+        parent.postMessage({ pluginMessage: message }, "*");
       }
 
-      let connect_screen_height = 360;
-      let analyse_screen_height = 330;
+      function setDisclosure() {
+        if (sort_method_select.value === "ai") {
+          data_disclosure_text.textContent =
+            "AI mode sends redacted comment text to your selected model provider through the Comment Sort backend. Billing is your own provider account.";
+        } else {
+          data_disclosure_text.textContent =
+            "Keyword mode sends comments to Comment Sort only. No model provider key is required.";
+        }
+      }
 
       function showConnectScreen() {
         connect_screen.hidden = false;
         analyse_screen.hidden = true;
-        parent.postMessage(
-          {
-            pluginMessage: {
-              type: "resize_ui",
-              height: connect_screen_height,
-            },
-          },
-          "*",
-        );
+        postPluginMessage({ type: "resize_ui", height: connect_screen_height });
       }
 
       function showAnalyseScreen() {
         connect_screen.hidden = true;
         analyse_screen.hidden = false;
-        parent.postMessage(
-          {
-            pluginMessage: {
-              type: "resize_ui",
-              height: analyse_screen_height,
-            },
-          },
-          "*",
-        );
+        postPluginMessage({ type: "resize_ui", height: analyse_screen_height });
       }
 
-      function setConnectDisabled(disabled) {
-        connect_button.disabled = disabled;
-        plugin_token_input.disabled = disabled;
-      }
-
-      function setActionButtonsDisabled(disabled) {
-        action_buttons.forEach((button) => {
-          button.disabled = disabled;
+      function persistSettings() {
+        postPluginMessage({
+          type: "save_settings",
+          file_url: file_url_input.value.trim(),
+          sort_method: sort_method_select.value,
         });
       }
 
       connect_button.addEventListener("click", () => {
         const plugin_token = plugin_token_input.value.trim();
         if (!plugin_token) {
-          connect_status_text.textContent = "Paste your plugin token to continue.";
-          connect_status_text.classList.add("error");
-          connect_status_text.classList.remove("success");
+          connect_status_text.textContent = "Paste your plugin token.";
+          connect_status_text.className = "status error";
           return;
         }
-
-        setConnectDisabled(true);
         connect_status_text.textContent = "Verifying token...";
-        connect_status_text.classList.remove("error", "success");
-
-        parent.postMessage(
-          {
-            pluginMessage: {
-              type: "save_token",
-              plugin_token,
-            },
-          },
-          "*",
-        );
+        connect_status_text.className = "status";
+        postPluginMessage({ type: "save_token", plugin_token });
       });
 
       change_token_button.addEventListener("click", () => {
-        parent.postMessage(
-          {
-            pluginMessage: {
-              type: "clear_token",
-            },
-          },
-          "*",
-        );
+        postPluginMessage({ type: "clear_token" });
+      });
+
+      file_url_input.addEventListener("change", persistSettings);
+      sort_method_select.addEventListener("change", () => {
+        setDisclosure();
+        persistSettings();
+      });
+
+      open_profile_link.addEventListener("click", () => {
+        postPluginMessage({ type: "open_external", href: "https://comment-sort.vercel.app/profile" });
+      });
+
+      open_privacy_link.addEventListener("click", () => {
+        postPluginMessage({ type: "open_external", href: "https://comment-sort.vercel.app/privacy" });
       });
 
       action_buttons.forEach((button) => {
         button.addEventListener("click", () => {
           const output_format = button.dataset.output;
-          if (!output_format) {
-            return;
-          }
-
-          setActionButtonsDisabled(true);
+          persistSettings();
           status_text.textContent = "Starting analysis...";
-          status_text.classList.remove("error");
-
-          parent.postMessage(
-            {
-              pluginMessage: {
-                type: "run_analysis",
-                output_format,
-              },
-            },
-            "*",
-          );
+          status_text.className = "status";
+          action_buttons.forEach((item) => (item.disabled = true));
+          postPluginMessage({ type: "run_analysis", output_format });
         });
       });
 
@@ -514,13 +178,16 @@
         }
 
         if (plugin_message.type === "auth_state") {
-          if (typeof plugin_message.connect_height === "number") {
-            connect_screen_height = plugin_message.connect_height;
+          if (typeof plugin_message.file_url === "string") {
+            file_url_input.value = plugin_message.file_url;
           }
-          if (typeof plugin_message.analyse_height === "number") {
-            analyse_screen_height = plugin_message.analyse_height;
+          if (
+            plugin_message.sort_method === "heuristic" ||
+            plugin_message.sort_method === "ai"
+          ) {
+            sort_method_select.value = plugin_message.sort_method;
           }
-
+          setDisclosure();
           if (plugin_message.connected) {
             showAnalyseScreen();
           } else {
@@ -530,59 +197,44 @@
 
         if (plugin_message.type === "connect_error") {
           connect_status_text.textContent = plugin_message.message;
-          connect_status_text.classList.add("error");
-          connect_status_text.classList.remove("success");
-          setConnectDisabled(false);
+          connect_status_text.className = "status error";
         }
 
         if (plugin_message.type === "connect_success") {
-          const prefix =
-            typeof plugin_message.prefix === "string"
-              ? plugin_message.prefix
-              : "token";
-          connect_status_text.textContent = `Connected (${prefix}…).`;
-          connect_status_text.classList.add("success");
-          connect_status_text.classList.remove("error");
-          setConnectDisabled(false);
+          connect_status_text.textContent = "Connected.";
+          connect_status_text.className = "status success";
           showAnalyseScreen();
         }
 
         if (plugin_message.type === "status") {
           status_text.textContent = plugin_message.message;
-          status_text.classList.remove("error");
+          status_text.className = "status";
         }
 
         if (plugin_message.type === "error") {
           status_text.textContent = plugin_message.message;
-          status_text.classList.add("error");
-          setActionButtonsDisabled(false);
+          status_text.className = "status error";
+          action_buttons.forEach((item) => (item.disabled = false));
         }
 
         if (plugin_message.type === "complete") {
           status_text.textContent = plugin_message.message;
-          status_text.classList.remove("error");
-          setActionButtonsDisabled(false);
+          status_text.className = "status success";
+          action_buttons.forEach((item) => (item.disabled = false));
         }
 
         if (plugin_message.type === "download_csv") {
-          if (
-            typeof plugin_message.csv !== "string" ||
-            typeof plugin_message.filename !== "string"
-          ) {
-            return;
-          }
-
-          const blob = new Blob([plugin_message.csv], {
-            type: "text/csv;charset=utf-8;",
-          });
-          const download_url = URL.createObjectURL(blob);
-          const download_link = document.createElement("a");
-          download_link.href = download_url;
-          download_link.download = plugin_message.filename;
-          download_link.click();
-          URL.revokeObjectURL(download_url);
+          const blob = new Blob([plugin_message.csv], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = plugin_message.filename;
+          link.click();
+          URL.revokeObjectURL(url);
         }
       };
+
+      setDisclosure();
     </script>
   </body>
 </html>

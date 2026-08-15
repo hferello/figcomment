@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import dayjs from "dayjs";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 import {
   assertEmailConfirmedForUser,
@@ -16,9 +16,33 @@ import {
   classify_mode_schema,
   classify_request_schema,
   classify_response_schema,
+  classified_row_schema,
   type ClassifiedRow,
   type ClassifyMode,
 } from "@/lib/classify/schema";
+import { classifyHeuristically } from "@/lib/classify/heuristic";
+import {
+  ai_response_schema,
+  attachPromptIds,
+  mergeRowsWithExactIdSet,
+} from "@/lib/classify/merge-classifications";
+import {
+  enforceCommentCountLimit,
+  MAX_AI_BATCHES,
+  MAX_COMMENTS_PER_REQUEST,
+  splitIntoBatches,
+  truncateCommentsForClassification,
+} from "@/lib/classify/limits";
+import {
+  buildModelForProvider,
+  resolveProvider,
+} from "@/lib/classify/provider-dispatch";
+import {
+  isProviderCredentialError,
+  isProviderRateLimitError,
+  isProviderUnavailableError,
+} from "@/lib/classify/provider-errors";
+import { app_constants } from "@/data/constants";
 import {
   touchPluginTokenLastUsed,
   verifyPluginTokenFromHeader,
@@ -37,7 +61,7 @@ import {
 // Intent: ephemeral processing only — never persist comments or PII to Supabase.
 // Note: with cacheComponents, `dynamic`/`runtime` segment configs are disabled —
 // POST handlers are request-time by default under the Node.js runtime.
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const base_cors_headers = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -46,11 +70,11 @@ const base_cors_headers = {
 };
 
 const default_allowed_origins = [
-  "http://localhost:3000",
-  "https://figcomment.vercel.app",
-  "https://www.figma.com",
-  "https://figma.com",
-  "null",
+  app_constants.backend.site_local,
+  app_constants.backend.site_production,
+  app_constants.backend.legacy_site_production,
+  ...app_constants.backend.figma_origins,
+  app_constants.backend.null_origin,
 ];
 
 type FigmaComment = {
@@ -67,7 +91,6 @@ type FigmaCommentsResponse = {
 
 type ClassifyAuthContext = {
   verified: VerifiedPluginToken;
-  credentials: UserProviderCredentials;
 };
 
 class ClassifyHttpError extends Error {
@@ -117,7 +140,7 @@ export async function POST(request: Request): Promise<Response> {
     const demo_bypass = is_unauthenticated_demo_allowed(mode);
     let auth_context: ClassifyAuthContext | null = null;
 
-    // Step 2: Bearer token → user_id → decrypt provider keys (skipped in local mock bypass).
+    // Step 2: Bearer token verification (skipped in local mock bypass).
     if (!demo_bypass) {
       auth_context = await resolve_authenticated_context(request);
     }
@@ -148,9 +171,17 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
 
-    // Step 4: parse and validate request body contract.
+    // Step 4: parse and validate request body contract before decrypting any LLM key.
     const request_json: unknown = await request.json();
     const request_payload = classify_request_schema.parse(request_json);
+
+    let credentials: UserProviderCredentials | null = null;
+    if (auth_context) {
+      credentials = await loadUserSecretsForClassify(
+        auth_context.verified.user_id,
+        request_payload,
+      );
+    }
 
     console.log("[classifyComments] processing", {
       mode,
@@ -164,7 +195,7 @@ export async function POST(request: Request): Promise<Response> {
     const comments = await fetch_figma_comments(
       request_payload.file_key,
       mode,
-      auth_context?.credentials ?? null,
+      credentials,
       demo_bypass,
     );
 
@@ -176,16 +207,36 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    // Step 6: classify in-memory — redact PII before Anthropic, restore in response.
+    // Step 6: cap + classify.
+    if (mode !== "mock") {
+      try {
+        enforceCommentCountLimit(comments);
+      } catch {
+        throw new ClassifyHttpError(
+          400,
+          "too_many_comments",
+          `${app_constants.backend.title} supports up to ${MAX_COMMENTS_PER_REQUEST} comments per run.`,
+        );
+      }
+    }
+
+    const truncated_comments = truncateCommentsForClassification(comments);
     const rows =
       mode === "mock"
-        ? mock_rows_for_comments(comments)
-        : await classify_with_ai(comments, mode, auth_context?.credentials.anthropic_key ?? null);
+        ? mock_rows_for_comments(truncated_comments)
+        : request_payload.sort_method === "heuristic"
+          ? classifyHeuristically(truncated_comments)
+          : await classify_with_ai(truncated_comments, mode, credentials);
 
     const response_payload = classify_response_schema.parse({
       rows,
       meta: {
         mode,
+        sort_method: request_payload.sort_method,
+        provider:
+          request_payload.sort_method === "ai"
+            ? resolveProvider(credentials?.llm_provider ?? null)
+            : null,
         latency_ms: dayjs().diff(start_time),
       },
     });
@@ -297,14 +348,13 @@ async function resolve_authenticated_context(
   }
 
   await assertEmailConfirmedForUser(verified.user_id);
-  const credentials = await loadUserSecretsForClassify(verified.user_id);
 
   console.log("[resolve_authenticated_context] completed", {
     user_id: verified.user_id,
     token_prefix: verified.prefix,
   });
 
-  return { verified, credentials };
+  return { verified };
 }
 
 /**
@@ -391,67 +441,93 @@ async function fetch_figma_comments(
 async function classify_with_ai(
   comments: FlattenedComment[],
   mode: ClassifyMode,
-  anthropic_key: string | null,
+  credentials: UserProviderCredentials | null,
 ): Promise<ClassifiedRow[]> {
   console.log("[classify_with_ai] started", { mode, comment_count: comments.length });
 
-  if (!anthropic_key) {
-    console.error("[classify_with_ai] missing_anthropic_key");
+  if (!credentials?.llm_key) {
+    console.error("[classify_with_ai] missing_llm_key");
     throw new ClassifyHttpError(
       400,
-      "missing_anthropic_key",
-      "Save your Anthropic API key in your profile before running analysis.",
+      "missing_llm_key",
+      "Save a model API key in your profile before using AI sort.",
     );
   }
 
-  const { redacted, token_map } = redactCommentsForPrompt(comments);
-  const anthropic = new Anthropic({ apiKey: anthropic_key });
-  const model_name = process.env.AI_MODEL ?? "claude-sonnet-4-6";
+  const provider = resolveProvider(credentials.llm_provider);
+  const batches =
+    comments.length > 18
+      ? splitIntoBatches(comments, MAX_AI_BATCHES)
+      : [comments];
+  const final_rows: ClassifiedRow[] = [];
 
   try {
-    const ai_response = await anthropic.messages.create({
-      model: model_name,
-      max_tokens: 2048,
-      system: classifier_system_prompt,
-      messages: [
-        {
-          role: "user",
-          content: JSON.stringify({
-            comments: redacted,
-            instruction:
-              "Classify each comment and output strictly valid JSON matching the requested schema.",
-          }),
-        },
-      ],
-    });
+    for (const batch of batches) {
+      const prompt_rows = attachPromptIds(batch);
+      const { redacted, token_map } = redactCommentsForPrompt(
+        prompt_rows.map((row) => ({
+          person: row.person,
+          feedback: row.feedback,
+        })),
+      );
 
-    const ai_text = ai_response.content
-      .filter((item) => item.type === "text")
-      .map((item) => item.text)
-      .join("\n");
+      const redacted_with_ids = prompt_rows.map((row, index) => ({
+        id: row.id,
+        person: redacted[index]?.person ?? row.person,
+        feedback: redacted[index]?.feedback ?? row.feedback,
+      }));
 
-    const json_text = extract_json_payload(ai_text);
-    const parsed_json: unknown = JSON.parse(json_text);
-    const parsed_rows = z
-      .object({ rows: z.array(classify_response_schema.shape.rows.element) })
-      .parse(parsed_json);
+      const model = buildModelForProvider(provider, credentials.llm_key);
+      const result = await generateText({
+        model,
+        system: classifier_system_prompt,
+        prompt: JSON.stringify({
+          instruction:
+            "Return exactly one row per input id. Preserve the id and return strictly valid JSON.",
+          comments: redacted_with_ids,
+        }),
+        maxOutputTokens: 8192,
+        output: Output.object({
+          schema: ai_response_schema,
+        }),
+      });
 
-    const restored_rows = detokenizeClassifiedRows(parsed_rows.rows, token_map);
+      const ai_payload = ai_response_schema.parse(result.output);
+      const merged_rows = mergeRowsWithExactIdSet(prompt_rows, ai_payload.rows);
+      const restored_rows = detokenizeClassifiedRows(merged_rows, token_map);
+      final_rows.push(...restored_rows);
+    }
 
-    console.log("[classify_with_ai] completed", { row_count: restored_rows.length });
-    return restored_rows;
+    console.log("[classify_with_ai] completed", { row_count: final_rows.length });
+    return z.array(classified_row_schema).parse(final_rows);
   } catch (error: unknown) {
     console.error("[classify_with_ai] failed", {
       mode,
       error_name: error instanceof Error ? error.name : "unknown",
-      auth_error: is_anthropic_auth_error(error),
+      provider,
     });
 
-    if (is_anthropic_auth_error(error)) {
+    if (isProviderCredentialError(error)) {
       throw new ClassifyHttpError(
         400,
-        "invalid_anthropic_key",
-        "Anthropic rejected your API key. Check your key in your profile.",
+        "invalid_credentials",
+        "The selected provider rejected your key. Save a valid key and try again.",
+      );
+    }
+
+    if (isProviderRateLimitError(error)) {
+      throw new ClassifyHttpError(
+        429,
+        "provider_rate_limited",
+        "The selected AI provider is rate limiting this request. Try again shortly.",
+      );
+    }
+
+    if (isProviderUnavailableError(error)) {
+      throw new ClassifyHttpError(
+        503,
+        "provider_unavailable",
+        "The selected AI provider is currently unavailable. Try again shortly.",
       );
     }
 
@@ -463,52 +539,14 @@ async function classify_with_ai(
     throw new ClassifyHttpError(
       502,
       "classification_failed",
-      "AI classification failed. Check your Anthropic API key and try again.",
+      "AI classification failed. Try again or switch to keyword sort.",
     );
   }
-}
-
-function is_anthropic_auth_error(error: unknown): boolean {
-  if (error instanceof Anthropic.AuthenticationError) {
-    return true;
-  }
-
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "status" in error &&
-    typeof (error as { status: unknown }).status === "number" &&
-    (error as { status: number }).status === 401
-  ) {
-    return true;
-  }
-
-  return false;
 }
 
 function get_mode(): ClassifyMode {
   const env_mode = process.env.DEMO_MODE ?? "fallback";
   return classify_mode_schema.parse(env_mode);
-}
-
-function extract_json_payload(ai_text: string): string {
-  const trimmed = ai_text.trim();
-  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-    return trimmed;
-  }
-
-  const code_fence_match = trimmed.match(/```json\s*([\s\S]*?)```/i);
-  if (code_fence_match && code_fence_match[1]) {
-    return code_fence_match[1].trim();
-  }
-
-  const first_brace = trimmed.indexOf("{");
-  const last_brace = trimmed.lastIndexOf("}");
-  if (first_brace >= 0 && last_brace > first_brace) {
-    return trimmed.slice(first_brace, last_brace + 1);
-  }
-
-  throw new Error("AI returned non-JSON content.");
 }
 
 function create_mock_input(): FlattenedComment[] {

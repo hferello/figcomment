@@ -64,18 +64,18 @@ export async function getActivePluginTokenMetadata(
 }
 
 /**
- * Mint a new plugin token. Requires both provider secrets; rejects if an active token exists.
+ * Mint a new plugin token. Requires Figma token; rejects if an active token exists.
  */
 export async function mintPluginToken(user_id: string): Promise<MintPluginTokenResult> {
   console.log("[mintPluginToken] started", { user_id });
 
-  // Step 1: both encrypted credentials must exist before a plugin token is useful.
+  // Step 1: Figma token must exist before a plugin token is useful.
   const secret_status = await getSecretStatus(user_id);
-  if (!secret_status.figma_saved || !secret_status.anthropic_saved) {
+  if (!secret_status.figma_saved) {
     console.error("[mintPluginToken] secrets_required", { user_id, ...secret_status });
     throw new ActionError(
       "secrets_required",
-      "Save both your Figma token and Anthropic key before creating a plugin token.",
+      "Save your Figma token before creating a plugin token.",
     );
   }
 

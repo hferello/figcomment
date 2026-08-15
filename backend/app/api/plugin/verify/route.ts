@@ -4,6 +4,7 @@ import {
   assertEmailConfirmedForUser,
   EmailNotConfirmedError,
 } from "@/lib/auth/email-confirmed";
+import { app_constants } from "@/data/constants";
 import { verifyPluginTokenFromHeader } from "@/lib/plugin-tokens/verify";
 import { enforceVerifyRateLimit } from "@/lib/rate-limit";
 
@@ -19,11 +20,11 @@ const base_cors_headers = {
 };
 
 const default_allowed_origins = [
-  "http://localhost:3000",
-  "https://figcomment.vercel.app",
-  "https://www.figma.com",
-  "https://figma.com",
-  "null",
+  app_constants.backend.site_local,
+  app_constants.backend.site_production,
+  app_constants.backend.legacy_site_production,
+  ...app_constants.backend.figma_origins,
+  app_constants.backend.null_origin,
 ];
 
 class VerifyHttpError extends Error {

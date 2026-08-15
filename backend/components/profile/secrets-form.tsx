@@ -18,6 +18,7 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
+import type { LlmProvider } from "@/lib/user-secrets/service";
 import type { SecretStatus } from "@/lib/user-secrets/service";
 
 /** Fake filled value so a saved field looks occupied without exposing the real secret. */
@@ -97,19 +98,22 @@ export function SecretsForm({
   const router = useRouter();
   const [status, setStatus] = useState(initial_status);
   const [figma_token, setFigmaToken] = useState("");
-  const [anthropic_key, setAnthropicKey] = useState("");
+  const [llm_key, setLlmKey] = useState("");
+  const [llm_provider, setLlmProvider] = useState<LlmProvider>(
+    initial_status.llm_provider ?? "anthropic",
+  );
   const [is_replacing, setIsReplacing] = useState(false);
   const [notice, setNotice] = useState<StatusNotice | null>(null);
   const [is_pending, startTransition] = useTransition();
 
   // Only both-saved locks the form behind Replace; one saved still allows saving the other.
   const show_replace_action =
-    status.figma_saved && status.anthropic_saved && !is_replacing;
+    status.figma_saved && status.llm_saved && !is_replacing;
 
   function handleReplaceTokens() {
     setNotice(null);
     setFigmaToken("");
-    setAnthropicKey("");
+    setLlmKey("");
     setIsReplacing(true);
   }
 
@@ -118,8 +122,8 @@ export function SecretsForm({
     setNotice(null);
 
     const trimmed_figma_token = figma_token.trim();
-    const trimmed_anthropic_key = anthropic_key.trim();
-    if (!trimmed_figma_token && !trimmed_anthropic_key) {
+    const trimmed_llm_key = llm_key.trim();
+    if (!trimmed_figma_token && !trimmed_llm_key) {
       setNotice({ kind: "error", message: "Enter at least one credential to save." });
       return;
     }
@@ -128,7 +132,12 @@ export function SecretsForm({
       try {
         const result = await saveUserSecretsAction({
           ...(trimmed_figma_token ? { figma_token: trimmed_figma_token } : {}),
-          ...(trimmed_anthropic_key ? { anthropic_key: trimmed_anthropic_key } : {}),
+          ...(trimmed_llm_key
+            ? {
+                llm_key: trimmed_llm_key,
+                llm_provider,
+              }
+            : {}),
         });
 
         if (!result.ok) {
@@ -139,7 +148,10 @@ export function SecretsForm({
 
         setStatus(result.data);
         setFigmaToken("");
-        setAnthropicKey("");
+        setLlmKey("");
+        if (result.data.llm_provider) {
+          setLlmProvider(result.data.llm_provider);
+        }
         setIsReplacing(false);
         setNotice({
           kind: "success",
@@ -183,19 +195,36 @@ export function SecretsForm({
             label_action={<FigmaTokenGuideDialog />}
             onValueChange={setFigmaToken}
           />
+          <Field>
+            <FieldLabel htmlFor="llm-provider">AI provider (optional)</FieldLabel>
+            <select
+              id="llm-provider"
+              value={llm_provider}
+              className="h-fc-48 w-full rounded-fc-12 border border-input bg-background px-fc-12 text-fc-14"
+              disabled={are_fields_disabled || (status.llm_saved && !is_replacing)}
+              onChange={(event) => setLlmProvider(event.target.value as LlmProvider)}
+            >
+              <option value="anthropic">Anthropic</option>
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+            </select>
+            <FieldDescription>
+              Choose where AI requests go when you use AI sort in the plugin.
+            </FieldDescription>
+          </Field>
           <SecretCredentialField
-            id="anthropic-key"
-            name="anthropic_key"
-            label="Anthropic API key"
-            is_saved={status.anthropic_saved}
-            is_locked={status.anthropic_saved && !is_replacing}
-            value={anthropic_key}
-            empty_placeholder="sk-ant-…"
+            id="llm-key"
+            name="llm_key"
+            label="Model API key (optional)"
+            is_saved={status.llm_saved}
+            is_locked={status.llm_saved && !is_replacing}
+            value={llm_key}
+            empty_placeholder="Paste provider key"
             saved_placeholder="Enter a replacement key"
-            description="Omit this field to keep the currently saved Anthropic key."
+            description="Omit this field to keep the currently saved model key."
             locked_description="Saved securely. Click Replace tokens to enter a new value."
             disabled={are_fields_disabled}
-            onValueChange={setAnthropicKey}
+            onValueChange={setLlmKey}
           />
         </FieldGroup>
 

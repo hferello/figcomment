@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/login-form";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { app_constants } from "@/data/constants";
 
 export const metadata: Metadata = {
   title: "Log in",
@@ -39,7 +40,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
     >
       <h2 className="font-display text-fc-36 font-bold">Log in</h2>
       <p className="mt-fc-12 mb-fc-24 text-fc-18 text-muted-foreground">
-        Continue to your private Figcomment profile.
+        Continue to your private {app_constants.backend.title} profile.
       </p>
       <Suspense fallback={null}>
         <LoginConfirmationAlert searchParams={searchParams} />

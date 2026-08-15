@@ -24,6 +24,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { app_constants } from "@/data/constants";
 
 /**
  * Login-only auth island. Submits through the loginAction server action so
@@ -119,7 +120,7 @@ export function LoginForm() {
             aria-describedby="login-email-help"
           />
           <FieldDescription id="login-email-help">
-            Use the address connected to your Figcomment account.
+            Use the address connected to your {app_constants.backend.title} account.
           </FieldDescription>
         </Field>
 
@@ -162,7 +163,7 @@ export function LoginForm() {
       </FieldGroup>
 
       <p className="mt-fc-24 text-center text-fc-14 text-muted-foreground">
-        New to Figcomment?{" "}
+        New to {app_constants.backend.title}?{" "}
         <Link
           href="/signup"
           className="font-medium text-fc-ink underline underline-offset-4"
